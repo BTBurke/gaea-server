@@ -18,5 +18,7 @@ func main() {
 
 	r.GET("/user", routes.GetCurrentUser)
 
+	r.GET("/sale", routes.GetCurrentSale)
+
 	r.Run(":9000")
 }

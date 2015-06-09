@@ -17,10 +17,12 @@ func main() {
 	})
 
 	r.GET("/user", routes.GetCurrentUser)
+	r.GET("/sale", routes.GetCurrentSale)
 
 	// When developing on c9
 	r.Run(":8080")
 	
 	// Local development
 	//r.Run(":9000")
+
 }

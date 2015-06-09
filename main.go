@@ -18,6 +18,9 @@ func main() {
 
 	r.GET("/user", routes.GetCurrentUser)
 	r.GET("/sale", routes.GetCurrentSale)
+	r.GET("/order", routes.GetOrders)
+	r.GET("/announcement", routes.GetAnnouncements)
+	r.GET("/inventory", routes.GetInventory)
 
 	// When developing on c9
 	r.Run(":8080")

@@ -1,0 +1,105 @@
+package routes
+
+import "github.com/gin-gonic/gin"
+import "encoding/csv"
+import "time"
+import "os"
+import "github.com/satori/go.uuid"
+import "strings"
+import "strconv"
+import "fmt"
+
+// Inventory represents a single inventory item that is associated with
+// an offered sale.  Changes are recorded in the changelog.
+type Inventory struct {
+    SaleID      uuid.UUID    `json:"sale_id"`
+    UpdatedAt   time.Time `json:"updated_at"`
+    InventoryID uuid.UUID    `json:"inventory_id"`
+    SupplierID  string    `json:"supplier_id"`
+    Name        string    `json:"name"`
+    Desc        string    `json:"desc"`
+    Abv         string    `json:"abv"`
+    Size        string    `json:"size"`
+    Year        string    `json:"year"`
+    Nonmember   int       `json:"nonmember"` // nonmember price in RMB (int)
+    Member      int       `json:"member"` // member price in RMB (int)
+    Type        []string  `json:"type"`
+    Origin      []string  `json:"origin"`
+    Changelog   []string  `json:"changelog"`
+}
+
+// loadInventoryFromCSV loads the inventory from a local or uploaded
+// CSV file.  Expects CSV in the following format for columns:
+// {id, name, desc, abv, size, year, nonmember, member, type, origin}
+func loadInventoryFromCSV(fname string, saleId uuid.UUID) ([]Inventory, error) {
+    
+    var out []Inventory
+    
+    csvfile, err := os.Open(fname)
+    if err != nil {
+        return out, err
+    }
+    defer csvfile.Close()
+    
+    reader := csv.NewReader(csvfile)
+
+    reader.FieldsPerRecord = 10
+
+    rawCSVdata, err := reader.ReadAll()
+    if err != nil {
+        return out, err
+    }
+
+    for idx, rec := range rawCSVdata {
+        
+        if idx == 0 {
+            // TODO: add check here for format on headers
+            continue
+        }
+        
+        nonmemPrice, err := strconv.Atoi(rec[6])
+        if err != nil {
+            return out, err
+        }
+        
+        memPrice, err := strconv.Atoi(rec[7])
+        if err != nil {
+            return out, err
+        }
+        
+        var t Inventory
+        t.SaleID = saleId
+        t.UpdatedAt = time.Now()
+        t.InventoryID = uuid.NewV4()
+        t.SupplierID = rec[0]
+        t.Name = rec[1]
+        t.Desc = rec[2]
+        t.Abv = rec[3]
+        t.Size = rec[4]
+        t.Year = rec[5]
+        t.Nonmember = nonmemPrice
+        t.Member = memPrice
+        t.Type = strings.Split(rec[8], ">")
+        t.Origin = strings.Split(rec[9], ">")
+        
+        out = append(out, t)
+        
+    }
+    
+    return out, nil
+
+}
+
+func GetInventory(c *gin.Context) {
+    //TODO: Normally, this should take the SaleID as the search parameter
+    // For testing, load from test fixture file
+    
+    inventory, err := loadInventoryFromCSV("/home/ubuntu/workspace/src/github.com/BTBurke/gaea-server/test/inventory.csv", uuid.NewV4())
+    if err != nil {
+        fmt.Println(err)
+        os.Exit(1)
+    }
+    
+    c.JSON(200, inventory)
+}
+    

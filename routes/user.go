@@ -8,7 +8,8 @@ type User struct {
 	LastName  string `json:"last_name"`
 	Email     string `json:"email"`
 	Role      string `json:"role"`
-	Uuid      string `json:"uuid"`
+	UserID      string `json:"user_id"`
+	//need to add PPT number, DIP ID, Section
 }
 
 func GetCurrentUser(c *gin.Context) {
@@ -19,7 +20,7 @@ func GetCurrentUser(c *gin.Context) {
         LastName: "Ambassador",
         Email: "AmbassadorJS@state.gov",
         Role: "member",
-        Uuid: "06c0eb9f-92c5-485f-9622-c3f225eb6a95",
+        UserID: "06c0eb9f-92c5-485f-9622-c3f225eb6a95",
     }
     c.JSON(200, testUser)
 }

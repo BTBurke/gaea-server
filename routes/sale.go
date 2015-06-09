@@ -7,10 +7,11 @@ import "time"
 // time.  The inventory key is a foreign key used to query from the inventory
 // table, representing items for sale.
 type Sale struct {
-	Inventory string    `json:"inventory"` //UUID pointing to inventory items
+	InventoryID string    `json:"inventory_id"` //UUID pointing to inventory items
 	OpenDate  time.Time `json:"open_date"`
 	CloseDate time.Time `json:"close_date"`
 	SaleType  string    `json:"sale_type"` //Set{'alcohol', 'merchandise'}
+	SaleID    string    `json:"sale_id"`
 }
 
 type sales struct {
@@ -21,14 +22,14 @@ type sales struct {
 // GetCurrentSale returns only open sales.  Currently only for testing.
 func GetCurrentSale(c *gin.Context) {
 	sale1 := Sale{
-		Inventory: "test-inventory-string",
+		InventoryID: "fc6afc30-2168-4628-bfe2-5180f6f3a57b",
 		OpenDate:  time.Date(2015, time.June, 5, 0, 0, 0, 0, time.UTC),
 		CloseDate: time.Date(2015, time.July, 31, 0, 0, 0, 0, time.UTC),
 		SaleType:  "alcohol",
 	}
 
 	sale2 := Sale{
-		Inventory: "test-inventory-string2",
+		InventoryID: "fc6afc30-2168-4628-bfe2-5180f6f3a57b",
 		OpenDate:  time.Date(2015, time.June, 5, 0, 0, 0, 0, time.UTC),
 		CloseDate: time.Date(2015, time.December, 31, 0, 0, 0, 0, time.UTC),
 		SaleType:  "merchandise",

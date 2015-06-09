@@ -18,5 +18,9 @@ func main() {
 
 	r.GET("/user", routes.GetCurrentUser)
 
-	r.Run(":9000")
+	// When developing on c9
+	r.Run(":8080")
+	
+	// Local development
+	//r.Run(":9000")
 }

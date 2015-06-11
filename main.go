@@ -23,9 +23,9 @@ func main() {
 	r.GET("/inventory", routes.GetInventory)
 
 	// When developing on c9
-	r.Run(":8080")
-	
+	// r.Run(":8080")
+
 	// Local development
-	//r.Run(":9000")
+	r.Run(":9000")
 
 }

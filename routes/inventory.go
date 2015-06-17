@@ -22,7 +22,7 @@ type Inventory struct {
 	Size        string    `json:"size"`
 	Year        string    `json:"year"`
 	NonmemPrice int       `json:"nonmem_price"` // nonmember price in RMB (int)
-	MemberPrice int       `json:"mem_price"`    // member price in RMB (int)
+	MemPrice    int       `json:"mem_price"`    // member price in RMB (int)
 	Type        []string  `json:"type"`
 	Origin      []string  `json:"origin"`
 	Changelog   []string  `json:"changelog"`
@@ -77,8 +77,8 @@ func loadInventoryFromCSV(fname string, saleId uuid.UUID) ([]Inventory, error) {
 		t.Abv = rec[3]
 		t.Size = rec[4]
 		t.Year = rec[5]
-		t.Nonmember = nonmemPrice
-		t.Member = memPrice
+		t.NonmemPrice = nonmemPrice
+		t.MemPrice = memPrice
 		t.Type = strings.Split(rec[8], ">")
 		t.Origin = strings.Split(rec[9], ">")
 

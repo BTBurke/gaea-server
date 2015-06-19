@@ -21,6 +21,7 @@ func main() {
 	r.GET("/order", routes.GetOrders)
 	r.GET("/announcement", routes.GetAnnouncements)
 	r.GET("/inventory", routes.GetInventory)
+	r.POST("/order/item", routes.AddOrderItem)
 
 	// When developing on c9
 	r.Run(":8080")

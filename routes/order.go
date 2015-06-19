@@ -2,6 +2,7 @@ package routes
 
 import "github.com/gin-gonic/gin"
 import "time"
+import "github.com/satori/go.uuid"
 
 // Order represents a single order transaction on behalf of a user.  It is
 // associated with a sale and has a status of open, submit, or deliver.
@@ -23,10 +24,9 @@ type OrderItem struct {
 	Qty         int       `json:"qty"`
 	InventoryID string    `json:"inventory_id"`
 	OrderID     string    `json:"order_id"`
-	OrderItemID string    `json:"order_item_id"`
+	OrderItemID uuid.UUID    `json:"order_item_id"`
 	UserID      string    `json:"user_id"`
 	UpdatedAt   time.Time `json:"updated_at"`
-	AmountEach  int       `json:"amount_each"`
 }
 
 type orders struct {
@@ -36,7 +36,6 @@ type orders struct {
 
 type orderItems struct {
 	Qty        int         `json:"qty"`
-	Order      Order       `json:"order"`
 	OrderItems []OrderItem `json:"order_items"`
 }
 
@@ -58,4 +57,23 @@ func GetOrders(c *gin.Context) {
 		Orders: []Order{oOrder},
 	}
 	c.JSON(200, ordersR)
+}
+
+// GET ordered items for a particular OrderID
+func GetOrderItems(c *gin.Context) {
+	
+}
+
+// POST a new order
+func AddOrderItem(c *gin.Context) {
+	var newItem OrderItem
+	
+	err := c.Bind(&newItem)
+	if err != nil {
+		c.JSON(422, gin.H{"error": "Data provided in wrong format, unable to complete request."}) 
+	}
+	newItem.UpdatedAt = time.Now()
+	newItem.OrderItemID	= uuid.NewV4()
+	
+	c.JSON(200, newItem)
 }

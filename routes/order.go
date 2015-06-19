@@ -3,6 +3,7 @@ package routes
 import "github.com/gin-gonic/gin"
 import "time"
 import "github.com/satori/go.uuid"
+import "fmt"
 
 // Order represents a single order transaction on behalf of a user.  It is
 // associated with a sale and has a status of open, submit, or deliver.
@@ -62,16 +63,24 @@ func GetOrders(c *gin.Context) {
 // GET ordered items for a particular OrderID
 func GetOrderItems(c *gin.Context) {
 	
+	orderID := c.Param("orderID")
+	fmt.Sprintf("I'm getting the order items for %s", orderID)
+	oItems := orderItems{}
+	c.JSON(200, oItems)
 }
 
 // POST a new order
 func AddOrderItem(c *gin.Context) {
 	var newItem OrderItem
 	
+	
 	err := c.Bind(&newItem)
 	if err != nil {
+		fmt.Println(err)
 		c.JSON(422, gin.H{"error": "Data provided in wrong format, unable to complete request."}) 
 	}
+	
+	
 	newItem.UpdatedAt = time.Now()
 	newItem.OrderItemID	= uuid.NewV4()
 	

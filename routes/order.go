@@ -86,3 +86,25 @@ func AddOrderItem(c *gin.Context) {
 	
 	c.JSON(200, newItem)
 }
+
+// DELETE an existing order item
+func DeleteOrderItem(c *gin.Context) {
+	orderItemID := c.Param("itemID")
+	
+	
+	c.JSON(200, gin.H{"order_item_id": orderItemID})
+	
+}
+
+// PUT update an existing order item
+func UpdateOrderItem(c *gin.Context) {
+	var updateItem OrderItem
+	
+	err := c.Bind(&updateItem)
+	if err != nil {
+		fmt.Println(err)
+		c.JSON(422, gin.H{"error": "Data provided in wrong format, unable to complete request."}) 
+	}
+	
+	c.JSON(200, updateItem)
+}

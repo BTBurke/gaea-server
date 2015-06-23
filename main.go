@@ -24,6 +24,8 @@ func main() {
 	
 	r.GET("/order/:orderID/item", routes.GetOrderItems)
 	r.POST("/order/:orderID/item", routes.AddOrderItem)
+	r.DELETE("/order/:orderID/item/:itemID", routes.DeleteOrderItem)
+	r.PUT("/order/:orderID/item/:itemID", routes.UpdateOrderItem)
 
 	// When developing on c9
 	r.Run(":8080")

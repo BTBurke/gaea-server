@@ -12,12 +12,12 @@ import "fmt"
 // Inventory represents a single inventory item that is associated with
 // an offered sale.  Changes are recorded in the changelog.
 type Inventory struct {
+	InventoryID uuid.UUID `json:"inventory_id"`
 	SaleID      uuid.UUID `json:"sale_id"`
 	UpdatedAt   time.Time `json:"updated_at"`
-	InventoryID uuid.UUID `json:"inventory_id"`
 	SupplierID  string    `json:"supplier_id"`
 	Name        string    `json:"name"`
-	Desc        string    `json:"desc"`
+	Description string    `json:"desc"`
 	Abv         string    `json:"abv"`
 	Size        string    `json:"size"`
 	Year        string    `json:"year"`
@@ -73,7 +73,7 @@ func loadInventoryFromCSV(fname string, saleId uuid.UUID) ([]Inventory, error) {
 		t.InventoryID = uuid.NewV4()
 		t.SupplierID = rec[0]
 		t.Name = rec[1]
-		t.Desc = rec[2]
+		t.Description = rec[2]
 		t.Abv = rec[3]
 		t.Size = rec[4]
 		t.Year = rec[5]

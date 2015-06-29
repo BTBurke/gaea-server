@@ -4,16 +4,18 @@ import "github.com/gin-gonic/gin"
 import "time"
 import "github.com/satori/go.uuid"
 import "fmt"
+import "github.com/jmoiron/sqlx"
+import "github.com/BTBurke/gaea-server/error"
+
 
 // Order represents a single order transaction on behalf of a user.  It is
 // associated with a sale and has a status of open, submit, or deliver.
 type Order struct {
-	SaleID      string    `json:"sale_id"`
+	SaleId      string    `json:"sale_id"`
 	Status      string    `json:"status"` // Set {Saved, Submit, Paid, Deliver, Complete}
 	StatusDate  time.Time `json:"status_date"`
 	UserName    string    `json:"user_name"`
-	UserID      string    `json:"user_id"`
-	OrderID     string    `json:"order_id"`
+	OrderId     string    `json:"order_id"`
 	SaleType    string    `json:"sale_type"`
 	ItemQty     int       `json:"item_qty"`
 	AmountTotal int       `json:"amount_total"`
@@ -23,10 +25,10 @@ type Order struct {
 // of an InventoryItem.
 type OrderItem struct {
 	Qty         int       `json:"qty"`
-	InventoryID string    `json:"inventory_id"`
-	OrderID     string    `json:"order_id"`
-	OrderItemID uuid.UUID    `json:"order_item_id"`
-	UserID      string    `json:"user_id"`
+	InventoryId string    `json:"inventory_id"`
+	OrderId     string    `json:"order_id"`
+	OrderitemId uuid.UUID    `json:"order_item_id,db:"orderitem_id"`
+	UserName    string    `json:"user_name"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
@@ -43,12 +45,11 @@ type orderItems struct {
 // GET for all orders by user
 func GetOrders(c *gin.Context) {
 	oOrder := Order{
-		SaleID:      "266c4743-6ad6-47b3-b2e4-3d1c4f24a35e",
+		SaleId:      "266c4743-6ad6-47b3-b2e4-3d1c4f24a35e",
 		Status:      "saved",
 		StatusDate:  time.Date(2015, time.June, 6, 0, 0, 0, 0, time.UTC),
 		UserName:    "ambassadorjs",
-		UserID:      "06c0eb9f-92c5-485f-9622-c3f225eb6a95",
-		OrderID:     "ambassadorjs-001",
+		OrderId:     "ambassadorjs-001",
 		SaleType:    "alcohol",
 		ItemQty:     0,
 		AmountTotal: 0,
@@ -61,30 +62,62 @@ func GetOrders(c *gin.Context) {
 }
 
 // GET ordered items for a particular OrderID
-func GetOrderItems(c *gin.Context) {
+func GetOrderItems(db *sqlx.DB) gin.HandlerFunc {
 	
-	orderID := c.Param("orderID")
-	fmt.Sprintf("I'm getting the order items for %s", orderID)
-	oItems := orderItems{}
-	c.JSON(200, oItems)
+	return func (c *gin.Context) {
+		orderID := c.Param("orderID")
+		fmt.Sprintf("I'm getting the order items for %s", orderID)
+		var oItems []OrderItem
+		var count int
+		
+		countErr := db.Get(&count, "SELECT COUNT(*) from gaea.orderitem WHERE order_id=$1", orderID)
+		if countErr != nil {
+			fmt.Println(countErr)
+			c.AbortWithError(503, error.APIError{503, "failed on getting count of order items", "internal server error"})
+			return
+		}
+		if count > 0 {
+			err := db.Select(&oItems, "SELECT * FROM gaea.orderitem WHERE order_id=$1", orderID)
+			fmt.Println(oItems)
+			if err != nil {
+				fmt.Println(err)
+				c.AbortWithError(503, error.APIError{503, "failed on getting order items", "internal server error"})
+				return
+			}
+		}
+		out := orderItems{
+				Qty: count,
+				OrderItems: oItems,
+		}
+		c.JSON(200, out)
+	}
 }
 
 // POST a new order
-func AddOrderItem(c *gin.Context) {
-	var newItem OrderItem
+func AddOrderItem(db *sqlx.DB) gin.HandlerFunc {
 	
-	
-	err := c.Bind(&newItem)
-	if err != nil {
-		fmt.Println(err)
-		c.JSON(422, gin.H{"error": "Data provided in wrong format, unable to complete request."}) 
+	return func (c *gin.Context) {
+		var newItem OrderItem
+		
+		err := c.Bind(&newItem)
+		if err != nil {
+			fmt.Println(err)
+			c.JSON(422, gin.H{"error": "Data provided in wrong format, unable to complete request."}) 
+			return
+		}
+		
+		newItem.UpdatedAt = time.Now()
+		newItem.OrderitemId	= uuid.NewV4()
+		
+		_, dbErr := db.NamedExec(`INSERT INTO gaea.orderitem
+			(orderitem_id, order_id, inventory_id, qty, updated_at, user_name)
+			VALUES (:orderitem_id, :order_id, :inventory_id, :qty, :updated_at, :user_name`, &newItem)
+		if dbErr != nil {
+			c.AbortWithError(503, error.APIError{503, "failed on inserting order items", "internal server error"})
+			return
+		}
+		c.JSON(200, newItem)
 	}
-	
-	
-	newItem.UpdatedAt = time.Now()
-	newItem.OrderItemID	= uuid.NewV4()
-	
-	c.JSON(200, newItem)
 }
 
 // DELETE an existing order item

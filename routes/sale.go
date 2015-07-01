@@ -22,20 +22,23 @@ type sales struct {
 
 // GetCurrentSale returns only open sales.  Currently only for testing.
 func GetCurrentSale(c *gin.Context) {
+	uuid1, _ := uuid.FromString("d1d92692-cbb3-4dfc-a09f-1d664e024d60")
+	uuid2, _ := uuid.FromString("e1b43dc8-2d11-4378-ba69-270aeb9b93c8")
+	
 	sale1 := Sale{
 		OpenDate:  time.Date(2015, time.June, 5, 0, 0, 0, 0, time.UTC),
 		CloseDate: time.Date(2015, time.July, 31, 0, 0, 0, 0, time.UTC),
 		SaleType:  "alcohol",
 		Status: "open",
-		SaleId: uuid.NewV4(),
+		SaleId: uuid1,
 	}
 
 	sale2 := Sale{
 		OpenDate:  time.Date(2015, time.June, 5, 0, 0, 0, 0, time.UTC),
 		CloseDate: time.Date(2015, time.December, 31, 0, 0, 0, 0, time.UTC),
 		SaleType:  "merchandise",
-		Status: "open",
-		SaleId: uuid.NewV4(),
+		Status: "complete",
+		SaleId: uuid2,
 	}
 
 	sales := sales{

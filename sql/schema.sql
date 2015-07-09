@@ -19,7 +19,8 @@ CREATE TABLE gaea.sale (
     sale_type text,
     open_date timestamp,
     close_date timestamp,
-    status text
+    status text,
+    salescopy text
 );
 
 CREATE TABLE gaea.inventory (

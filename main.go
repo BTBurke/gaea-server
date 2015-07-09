@@ -30,11 +30,16 @@ func main() {
 	})
 
 	r.GET("/user", routes.GetCurrentUser)
-	r.GET("/sale", routes.GetCurrentSale)
-	r.GET("/order", routes.GetOrders)
+	
+	
 	r.GET("/announcement", routes.GetAnnouncements)
 	r.GET("/inventory", routes.GetInventory)
 	
+	r.GET("/sale", routes.GetCurrentSale)
+	r.PUT("/sale/:saleID", routes.UpdateSale)
+	
+	
+	r.GET("/order", routes.GetOrders)
 	r.GET("/order/:orderID/item", routes.GetOrderItems(db))
 	r.POST("/order/:orderID/item", routes.AddOrderItem(db))
 	r.DELETE("/order/:orderID/item/:itemID", routes.DeleteOrderItem)

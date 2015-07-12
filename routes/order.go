@@ -2,20 +2,20 @@ package routes
 
 import "github.com/gin-gonic/gin"
 import "time"
-import "github.com/satori/go.uuid"
 import "fmt"
 import "github.com/jmoiron/sqlx"
 import "github.com/BTBurke/gaea-server/error"
 
 
+
 // Order represents a single order transaction on behalf of a user.  It is
 // associated with a sale and has a status of open, submit, or deliver.
 type Order struct {
-	SaleId      string    `json:"sale_id"`
+	SaleId      int    `json:"sale_id"`
 	Status      string    `json:"status"` // Set {Saved, Submit, Paid, Deliver, Complete}
 	StatusDate  time.Time `json:"status_date"`
 	UserName    string    `json:"user_name"`
-	OrderId     string    `json:"order_id"`
+	OrderId     int    `json:"order_id"`
 	SaleType    string    `json:"sale_type"`
 	ItemQty     int       `json:"item_qty"`
 	AmountTotal int       `json:"amount_total"`
@@ -25,9 +25,9 @@ type Order struct {
 // of an InventoryItem.
 type OrderItem struct {
 	Qty         int       `json:"qty"`
-	InventoryId string    `json:"inventory_id"`
-	OrderId     string    `json:"order_id"`
-	OrderitemId uuid.UUID    `json:"order_item_id,db:"orderitem_id"`
+	InventoryId int    `json:"inventory_id"`
+	OrderId     int    `json:"order_id"`
+	OrderitemId int    `json:"orderitem_id",db:"orderitem_id"`
 	UserName    string    `json:"user_name"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -45,11 +45,11 @@ type orderItems struct {
 // GET for all orders by user
 func GetOrders(c *gin.Context) {
 	oOrder := Order{
-		SaleId:      "266c4743-6ad6-47b3-b2e4-3d1c4f24a35e",
+		SaleId:      99,
 		Status:      "saved",
 		StatusDate:  time.Date(2015, time.June, 6, 0, 0, 0, 0, time.UTC),
 		UserName:    "ambassadorjs",
-		OrderId:     "ambassadorjs-001",
+		OrderId:     23,
 		SaleType:    "alcohol",
 		ItemQty:     0,
 		AmountTotal: 0,
@@ -107,12 +107,13 @@ func AddOrderItem(db *sqlx.DB) gin.HandlerFunc {
 		}
 		
 		newItem.UpdatedAt = time.Now()
-		newItem.OrderitemId	= uuid.NewV4()
 		
-		_, dbErr := db.NamedExec(`INSERT INTO gaea.orderitem
-			(orderitem_id, order_id, inventory_id, qty, updated_at, user_name)
-			VALUES (:orderitem_id, :order_id, :inventory_id, :qty, :updated_at, :user_name`, &newItem)
+		dbErr := db.MustExec(`INSERT INTO gaea.orderitem
+			(order_id, inventory_id, qty, updated_at, user_name)
+			VALUES ($1, $2, $3, $4, $5)`, newItem.OrderId, newItem.InventoryId, newItem.Qty, newItem.UpdatedAt, newItem.UserName)
 		if dbErr != nil {
+			fmt.Println("error on db entry")
+			fmt.Println(dbErr)
 			c.AbortWithError(503, error.APIError{503, "failed on inserting order items", "internal server error"})
 			return
 		}

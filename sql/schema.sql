@@ -15,7 +15,7 @@ CREATE TABLE gaea.user (
 );
 
 CREATE TABLE gaea.sale (
-    sale_id uuid PRIMARY KEY,
+    sale_id serial PRIMARY KEY,
     sale_type text,
     open_date timestamp,
     close_date timestamp,
@@ -24,8 +24,8 @@ CREATE TABLE gaea.sale (
 );
 
 CREATE TABLE gaea.inventory (
-    inventory_id uuid PRIMARY KEY,
-    sale_id uuid REFERENCES gaea.sale (sale_id),
+    inventory_id serial PRIMARY KEY,
+    sale_id serial REFERENCES gaea.sale (sale_id),
     updated_at timestamp,
     supplier_id text NOT NULL,
     name text NOT NULL,
@@ -33,8 +33,8 @@ CREATE TABLE gaea.inventory (
     abv text,
     size text,
     year text,
-    nonmem_price integer,
-    mem_price integer NOT NULL,
+    nonmem_price money,
+    mem_price money NOT NULL,
     types text[],
     origin text[],
     changelog text[]
@@ -42,8 +42,8 @@ CREATE TABLE gaea.inventory (
 
 
 CREATE TABLE gaea.order (
-    order_id uuid PRIMARY KEY,
-    sale_id uuid REFERENCES gaea.sale (sale_id),
+    order_id serial PRIMARY KEY,
+    sale_id serial REFERENCES gaea.sale (sale_id),
     status text,
     status_date timestamp,
     user_name text REFERENCES gaea.user (user_name),
@@ -51,10 +51,10 @@ CREATE TABLE gaea.order (
 );
 
 CREATE TABLE gaea.orderitem (
-    orderitem_id uuid PRIMARY KEY,
-    order_id uuid REFERENCES gaea.order (order_id),
-    inventory_id uuid REFERENCES gaea.inventory (inventory_id),
-    qty integer,
+    orderitem_id serial PRIMARY KEY,
+    order_id serial REFERENCES gaea.order (order_id),
+    inventory_id serial REFERENCES gaea.inventory (inventory_id),
+    qty integer NOT NULL,
     updated_at timestamp,
     user_name text REFERENCES gaea.user (user_name)
 );

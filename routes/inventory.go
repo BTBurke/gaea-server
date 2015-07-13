@@ -4,7 +4,6 @@ import "github.com/gin-gonic/gin"
 import "encoding/csv"
 import "time"
 import "os"
-import "github.com/satori/go.uuid"
 import "strings"
 import "strconv"
 import "fmt"
@@ -12,8 +11,8 @@ import "fmt"
 // Inventory represents a single inventory item that is associated with
 // an offered sale.  Changes are recorded in the changelog.
 type Inventory struct {
-	InventoryID uuid.UUID `json:"inventory_id"`
-	SaleID      uuid.UUID `json:"sale_id"`
+	InventoryID int `json:"inventory_id"`
+	SaleID      int `json:"sale_id"`
 	UpdatedAt   time.Time `json:"updated_at"`
 	SupplierID  string    `json:"supplier_id"`
 	Name        string    `json:"name"`
@@ -31,7 +30,7 @@ type Inventory struct {
 // loadInventoryFromCSV loads the inventory from a local or uploaded
 // CSV file.  Expects CSV in the following format for columns:
 // {id, name, desc, abv, size, year, nonmember, member, type, origin}
-func loadInventoryFromCSV(fname string, saleId uuid.UUID) ([]Inventory, error) {
+func loadInventoryFromCSV(fname string, saleId int) ([]Inventory, error) {
 
 	var out []Inventory
 
@@ -70,7 +69,7 @@ func loadInventoryFromCSV(fname string, saleId uuid.UUID) ([]Inventory, error) {
 		var t Inventory
 		t.SaleID = saleId
 		t.UpdatedAt = time.Now()
-		t.InventoryID = uuid.NewV4()
+		t.InventoryID = idx
 		t.SupplierID = rec[0]
 		t.Name = rec[1]
 		t.Description = rec[2]
@@ -94,7 +93,7 @@ func GetInventory(c *gin.Context) {
 	//TODO: Normally, this should take the SaleID as the search parameter
 	// For testing, load from test fixture file
 
-	inventory, err := loadInventoryFromCSV("/home/ubuntu/workspace/src/github.com/BTBurke/gaea-server/test/inventory.csv", uuid.NewV4())
+	inventory, err := loadInventoryFromCSV("/home/ubuntu/workspace/src/github.com/BTBurke/gaea-server/test/inventory.csv", 1)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

@@ -61,6 +61,39 @@ func GetOrders(c *gin.Context) {
 	c.JSON(200, ordersR)
 }
 
+// Post to create a new order
+func CreateOrder(db *sqlx.DB) gin.HandlerFunc {
+	return func (c *gin.Context) {
+		var ord Order
+		var userName = "ambassadorjs"
+		
+		err := c.Bind(&ord)
+		if err != nil {
+			fmt.Println(err)
+			c.AbortWithError(503, error.APIError{503, "failed to create new order", "internal server error"})
+			return
+		}
+		
+		ord.UserName = userName
+		ord.StatusDate = time.Now()
+		ord.Status = "saved"
+		
+		dbErr := db.MustExec("INSERT INTO gaea.order (order_id, sale_id, status, status_date, user_name, sale_type) VALUES (DEFAULT, $1, $2, $3, $4, $5)",
+			ord.SaleId,
+			ord.Status,
+			ord.StatusDate,
+			ord.UserName,
+			ord.SaleType)
+		
+		if dbErr != nil {
+			fmt.Println(dbErr)
+			c.AbortWithError(503, error.APIError{503, "failed to bind new order", "internal server error"})
+			return
+		}
+		c.JSON(200, ord)
+	}
+}
+
 // GET ordered items for a particular OrderID
 func GetOrderItems(db *sqlx.DB) gin.HandlerFunc {
 	

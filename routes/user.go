@@ -9,7 +9,6 @@ type User struct {
 	LastName  string `json:"last_name"`
 	Email     string `json:"email"`
 	Role      string `json:"role"`
-	UserID    string `json:"user_id"`
 	password    string
 	DipID       string `json:"dip_id"`
 	Passport    string `json:"passport"`
@@ -26,7 +25,6 @@ func GetCurrentUser(c *gin.Context) {
 		LastName:  "Ambassador",
 		Email:     "AmbassadorJS@state.gov",
 		Role:      "admin",
-		UserID:    "06c0eb9f-92c5-485f-9622-c3f225eb6a95",
 	}
 	c.JSON(200, testUser)
 }

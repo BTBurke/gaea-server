@@ -29,7 +29,7 @@ func main() {
 		c.String(401, "Unauthorized")
 	})
 
-	r.GET("/user", routes.GetCurrentUser)
+	r.GET("/user", routes.GetCurrentUser(db))
 	
 	
 	r.GET("/announcement", routes.GetAnnouncements)
@@ -40,6 +40,7 @@ func main() {
 	
 	
 	r.GET("/order", routes.GetOrders)
+	r.POST("/order", routes.CreateOrder(db))
 	r.GET("/order/:orderID/item", routes.GetOrderItems(db))
 	r.POST("/order/:orderID/item", routes.AddOrderItem(db))
 	r.DELETE("/order/:orderID/item/:itemID", routes.DeleteOrderItem)

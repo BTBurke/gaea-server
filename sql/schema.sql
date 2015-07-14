@@ -10,7 +10,7 @@ CREATE TABLE gaea.user (
     dip_id text,
     passport text,
     section text,
-    updated_at timestamp,
+    updated_at timestamp NOT NULL,
     update_token text
 );
 
@@ -65,11 +65,22 @@ INSERT INTO gaea.user (
     last_name,
     email,
     role,
-    password) VALUES (
+    password,
+    dip_id,
+    passport,
+    section,
+    updated_at,
+    update_token
+    ) VALUES (
     'burkebt',
     'Bryan',
     'Burke',
     'btburke@fastmail.com',
     'superadmin',
-    '16384$8$1$84c73e785d4d9a45df5923cf1663af04$59a8f646c5e13714cf0fe2ee832af9aa03ae32779c9d9157fb65e9ab98cc1bfd'
+    '16384$8$1$84c73e785d4d9a45df5923cf1663af04$59a8f646c5e13714cf0fe2ee832af9aa03ae32779c9d9157fb65e9ab98cc1bfd',
+    '',
+    '910267372',
+    'NIV',
+    '2015-06-06T00:00:00Z',
+    ''
 );

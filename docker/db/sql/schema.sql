@@ -60,8 +60,8 @@ CREATE TABLE gaea.orderitem (
 );
 
 INSERT INTO gaea.user (
-    user_name, 
-    first_name, 
+    user_name,
+    first_name,
     last_name,
     email,
     role,

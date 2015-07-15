@@ -36,6 +36,7 @@ func main() {
 	r.GET("/inventory", routes.GetInventory)
 	
 	r.GET("/sale", routes.GetCurrentSale)
+	r.POST("/sale", routes.CreateSale)
 	r.PUT("/sale/:saleID", routes.UpdateSale)
 	
 	

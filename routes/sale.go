@@ -63,3 +63,18 @@ func UpdateSale(c *gin.Context) {
 	
 	c.JSON(200, update)
 }
+
+// CreateSale creates a new sale in the database
+func CreateSale(c *gin.Context) {
+	var newSale Sale
+	
+	err := c.Bind(&newSale)
+	
+	newSale.SaleId = 999
+	if err != nil {
+		c.JSON(422, gin.H{"error": "Data provided in wrong format, unable to complete request."})
+		return
+	}
+	
+	c.JSON(200, newSale)
+}

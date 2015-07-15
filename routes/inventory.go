@@ -11,8 +11,8 @@ import "fmt"
 // Inventory represents a single inventory item that is associated with
 // an offered sale.  Changes are recorded in the changelog.
 type Inventory struct {
-	InventoryID int `json:"inventory_id"`
-	SaleID      int `json:"sale_id"`
+	InventoryID int       `json:"inventory_id"`
+	SaleID      int       `json:"sale_id"`
 	UpdatedAt   time.Time `json:"updated_at"`
 	SupplierID  string    `json:"supplier_id"`
 	Name        string    `json:"name"`
@@ -22,7 +22,7 @@ type Inventory struct {
 	Year        string    `json:"year"`
 	NonmemPrice int       `json:"nonmem_price"` // nonmember price in RMB (int)
 	MemPrice    int       `json:"mem_price"`    // member price in RMB (int)
-	Types        []string  `json:"types"`
+	Types       []string  `json:"types"`
 	Origin      []string  `json:"origin"`
 	Changelog   []string  `json:"changelog"`
 }
@@ -93,7 +93,7 @@ func GetInventory(c *gin.Context) {
 	//TODO: Normally, this should take the SaleID as the search parameter
 	// For testing, load from test fixture file
 
-	inventory, err := loadInventoryFromCSV("/home/ubuntu/workspace/src/github.com/BTBurke/gaea-server/test/inventory.csv", 1)
+	inventory, err := loadInventoryFromCSV("./test/inventory.csv", 1)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

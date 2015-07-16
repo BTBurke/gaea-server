@@ -1,4 +1,4 @@
-package error
+package errors
 
 type APIError struct {
     Code int

@@ -3,7 +3,7 @@ package routes
 import "github.com/gin-gonic/gin"
 import _ "github.com/lib/pq"
 import "github.com/jmoiron/sqlx"
-import "github.com/BTBurke/gaea-server/error"
+import "github.com/BTBurke/gaea-server/errors"
 import "github.com/guregu/null/zero"
 import "fmt"
 
@@ -34,7 +34,7 @@ func GetCurrentUser(db *sqlx.DB) gin.HandlerFunc {
 		err := db.Get(&user1, "SELECT * from gaea.user WHERE user_name=$1", userName)
 		if err != nil {
 			fmt.Println(err)
-			c.AbortWithError(503, error.APIError{503, "failed on getting user", "internal server error"})
+			c.AbortWithError(503, errors.APIError{503, "failed on getting user", "internal server error"})
 			return
 		}
 		c.JSON(200, user1)

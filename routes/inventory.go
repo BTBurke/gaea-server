@@ -1,6 +1,7 @@
 package routes
 
 import "github.com/gin-gonic/gin"
+import "github.com/BTBurke/gaea-server/errors"
 import "encoding/csv"
 import "time"
 import "os"
@@ -98,6 +99,20 @@ func GetInventory(c *gin.Context) {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
-	c.JSON(200, inventory)
+	orderQ := c.Query("order")
+	saleQ := c.Query("sale")
+	
+	var queryName string
+	switch {
+		case len(orderQ) > 0:
+			// TODO: need query that uses order number to look up saleID
+			queryName = "order-" + orderQ
+		case len(saleQ) > 0:
+			queryName = "sale-" + saleQ
+		default:
+			c.AbortWithError(422, errors.APIError{422, "sale or order ID does not exist in query string", "sale or order ID does not exist in query string"})
+			return
+	}
+	
+	c.JSON(200, gin.H{"inventory": inventory, "query": queryName, "qty": len(inventory)})
 }

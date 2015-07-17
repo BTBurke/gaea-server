@@ -16,57 +16,116 @@ type Sale struct {
 	OpenDate  time.Time `json:"open_date" db:"open_date"`
 	CloseDate time.Time `json:"close_date" db:"close_date"`
 	SaleType  string    `json:"sale_type" db:"sale_type"` //Set{'alcohol', 'merchandise'}
-	SaleId    int64     `json:"sale_id" db:"sale_id"`
-	Status    string    `json:"status"` //Set('open', 'closed', 'deliver', 'complete')
+	SaleId    int      `json:"sale_id" db:"sale_id"`
+	Status    string    `json:"status" db:"status"` //Set('open', 'closed', 'deliver', 'complete')
 	Salescopy string    `json:"sales_copy" db:"salescopy"`
 }
 
-type sales struct {
-	Qty   int    `json:"qty"`
-	Sales []Sale `json:"sales"`
+
+
+// updateSaleStatus returns a new array of sales with updated status and 
+// also updates their current status in the DB
+func updateSaleStatus(db *sqlx.DB, sales []Sale) ([]Sale, error) {
+	
+	var retSales []Sale
+	for _, sale := range sales {
+		switch {
+			case sale.Status == "complete":
+				retSales = append(retSales, sale)
+				continue
+			case time.Now().Before(sale.CloseDate):
+				// handle corner case hack where sale closes then is extended
+				// TODO: could update database here to reflect back to open, but hack works fine
+				sale.Status = "open"
+				retSales = append(retSales, sale)
+				continue
+			case time.Now().After(sale.CloseDate):
+				fmt.Println("found someone to update")
+				var deliveredOrders int
+				var openOrders int
+				err := db.Get(&deliveredOrders, 
+					"SELECT COUNT(*) FROM gaea.order WHERE sale_id = $1 AND status = 'deliver'",
+					sale.SaleId)
+				if err != nil {
+					return []Sale{}, err
+				}
+				err2 := db.Get(&openOrders,
+					"SELECT COUNT(*) FROM gaea.order WHERE sale_id = $1 AND status != 'deliver'",
+					sale.SaleId)
+				if err2 != nil {
+					return []Sale{}, err2
+				}
+				var newStatus string
+				switch {
+					case deliveredOrders > 0 && openOrders > 0:
+						newStatus = "deliver"
+					case deliveredOrders > 0 && openOrders == 0:
+						newStatus = "complete"
+					case deliveredOrders == 0 && openOrders > 0:
+						newStatus = "closed"
+					case deliveredOrders == 0 && openOrders == 0:
+						// unlikely event that sale opens/closes but
+						// with no orders
+						newStatus = "complete"
+				}
+				if (newStatus != sale.Status) {
+					err3 := db.Get(&sale.Status,
+						"UPDATE gaea.sale SET status = $1 WHERE sale_id = $2 RETURNING status",
+						newStatus,
+						sale.SaleId)
+					if err3 != nil {
+						return []Sale{}, err3
+					}
+				}
+				retSales = append(retSales, sale)
+		}	
+	}
+	return retSales, nil
 }
 
 // GetCurrentSale returns only open sales.  Currently only for testing.
-func GetCurrentSale(c *gin.Context) {
-
-	sale1 := Sale{
-		OpenDate:  time.Date(2015, time.June, 5, 0, 0, 0, 0, time.UTC),
-		CloseDate: time.Date(2015, time.July, 31, 0, 0, 0, 0, time.UTC),
-		SaleType:  "alcohol",
-		Status:    "open",
-		SaleId:    1,
-		Salescopy: "This is a test of the sales copy.  It will appear in announcements.",
+func GetSales(db *sqlx.DB) gin.HandlerFunc {
+	return func (c *gin.Context) {
+			sales := []Sale{}
+		err := db.Select(&sales, "SELECT * FROM gaea.sale")
+		if err != nil {
+			c.AbortWithError(503, errors.APIError{503, "failed on getting sales", "internal server error"})
+			return
+		}
+		updatedSales, err := updateSaleStatus(db, sales)
+		if err != nil {
+			c.AbortWithError(503, errors.APIError{503, "failed on updating sales", "internal server error"})
+			return
+		}
+		c.JSON(200, gin.H{"qty": len(updatedSales), "sales": updatedSales})
 	}
-
-	sale2 := Sale{
-		OpenDate:  time.Date(2015, time.June, 5, 0, 0, 0, 0, time.UTC),
-		CloseDate: time.Date(2015, time.December, 31, 0, 0, 0, 0, time.UTC),
-		SaleType:  "merchandise",
-		Status:    "complete",
-		SaleId:    2,
-		Salescopy: "no copy",
-	}
-
-	sales := sales{
-		Qty:   2,
-		Sales: []Sale{sale1, sale2},
-	}
-
-	c.JSON(200, sales)
-
 }
 
 // UpdateSale will update the details of a sale
-func UpdateSale(c *gin.Context) {
-	var update Sale
-
-	err := c.Bind(&update)
-	if err != nil {
-		c.JSON(422, gin.H{"error": "Data provided in wrong format, unable to complete request."})
-		return
+func UpdateSale(db *sqlx.DB) gin.HandlerFunc {
+	return func (c *gin.Context) {
+		var update Sale
+	
+		err := c.Bind(&update)
+		if err != nil {
+			c.AbortWithError(422, errors.APIError{422, "format wrong on sale update", "internal server error"})
+			return
+		}
+		
+		var updatedSale Sale
+		err2 := db.Get(&updatedSale,
+			"UPDATE gaea.sale SET open_date=$1, close_date=$2, salescopy=$3 WHERE sale_id=$4 RETURNING *",
+			update.OpenDate,
+			update.CloseDate,
+			update.Salescopy,
+			update.SaleId)
+		if err2 != nil {
+			c.AbortWithError(503, errors.APIError{503, "failed on updating sale", "internal server error"})
+			return
+		}
+		
+		c.JSON(200, updatedSale)
 	}
-
-	c.JSON(200, update)
 }
 
 // CreateSale creates a new sale in the database
@@ -75,20 +134,23 @@ func CreateSale(db *sqlx.DB) gin.HandlerFunc {
 		var newSale Sale
 
 		err := c.Bind(&newSale)
-		saleID, dbErr := db.NamedExec("INSERT INTO gaea.sale (sale_id, sale_type, open_date, close_date, salescopy) VALUES (DEFAULT, :sale_type, :open_date, :close_date, :salescopy) RETURNING sale_id", &newSale)
-		if dbErr != nil {
-			fmt.Println(dbErr)
-			c.AbortWithError(503, errors.APIError{503, "failed on inserting a new sale", "internal server error"})
-		}
-		fmt.Println(saleID)
-		insertID, _ := saleID.LastInsertId()
-		fmt.Println("insertID", insertID)
-		newSale.SaleId = insertID
 		if err != nil {
 			c.JSON(422, gin.H{"error": "Data provided in wrong format, unable to complete request."})
 			return
 		}
-
-		c.JSON(200, newSale)
+		var retSale Sale
+		dbErr := db.Get(&retSale,
+			"INSERT INTO gaea.sale (sale_id, sale_type, open_date, close_date, status, salescopy) VALUES (DEFAULT, $1, $2, $3, $4, $5) RETURNING *",
+			newSale.SaleType,
+			newSale.OpenDate,
+			newSale.CloseDate,
+			"open",
+			newSale.Salescopy)
+		if dbErr != nil {
+			fmt.Println(dbErr)
+			c.AbortWithError(503, errors.APIError{503, "failed on inserting a new sale", "internal server error"})
+			return
+		}
+		c.JSON(200, retSale)
 	}
 }

@@ -16,11 +16,11 @@ CREATE TABLE gaea.user (
 
 CREATE TABLE gaea.sale (
     sale_id serial PRIMARY KEY,
-    sale_type text,
-    open_date timestamp,
-    close_date timestamp,
-    status text,
-    salescopy text
+    sale_type text NOT NULL,
+    open_date timestamp NOT NULL,
+    close_date timestamp NOT NULL,
+    status text NOT NULL,
+    salescopy text NOT NULL
 );
 
 CREATE TABLE gaea.inventory (

@@ -34,9 +34,9 @@ func main() {
 	r.GET("/announcement", routes.GetAnnouncements)
 	r.GET("/inventory", routes.GetInventory)
 
-	r.GET("/sale", routes.GetCurrentSale)
+	r.GET("/sale", routes.GetSales(db))
 	r.POST("/sale", routes.CreateSale(db))
-	r.PUT("/sale/:saleID", routes.UpdateSale)
+	r.PUT("/sale/:saleID", routes.UpdateSale(db))
 
 	r.GET("/order", routes.GetOrders)
 	r.POST("/order", routes.CreateOrder(db))

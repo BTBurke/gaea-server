@@ -12,7 +12,7 @@ import "github.com/BTBurke/gaea-server/errors"
 // associated with a sale and has a status of open, submit, or deliver.
 type Order struct {
 	SaleId      int    `json:"sale_id"`
-	Status      string    `json:"status"` // Set {Saved, Submit, Paid, Deliver, Complete}
+	Status      string    `json:"status"` // Set {Saved, Submit, Paid, Deliver}
 	StatusDate  time.Time `json:"status_date"`
 	UserName    string    `json:"user_name"`
 	OrderId     int    `json:"order_id"`

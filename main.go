@@ -5,6 +5,7 @@ import "github.com/BTBurke/gaea-server/routes"
 import "github.com/BTBurke/gaea-server/middleware"
 
 import _ "github.com/lib/pq"
+import "gopkg.in/pg.v3"
 
 //import "database/sql"
 import "github.com/jmoiron/sqlx"
@@ -32,7 +33,9 @@ func main() {
 	r.GET("/user", routes.GetCurrentUser(db))
 
 	r.GET("/announcement", routes.GetAnnouncements)
-	r.GET("/inventory", routes.GetInventory)
+	
+	r.GET("/inventory", routes.GetInventory(db))
+	r.POST("/inventory/csv", routes.CreateInventoryFromCSVString(db))
 
 	r.GET("/sale", routes.GetSales(db))
 	r.POST("/sale", routes.CreateSale(db))

@@ -4,10 +4,10 @@ import "github.com/gin-gonic/gin"
 import "github.com/BTBurke/gaea-server/errors"
 import "encoding/csv"
 import "time"
-import "os"
 import "strings"
 import "strconv"
 import "fmt"
+import "github.com/jmoiron/sqlx"
 
 // Inventory represents a single inventory item that is associated with
 // an offered sale.  Changes are recorded in the changelog.
@@ -28,20 +28,20 @@ type Inventory struct {
 	Changelog   []string  `json:"changelog"`
 }
 
+type csvInventory struct {
+	CSV string `json:"csv"`
+	SaleId int `json:"sale_id"`
+	Header bool `json:"header"`
+}
+
 // loadInventoryFromCSV loads the inventory from a local or uploaded
 // CSV file.  Expects CSV in the following format for columns:
 // {id, name, desc, abv, size, year, nonmember, member, type, origin}
-func loadInventoryFromCSV(fname string, saleId int) ([]Inventory, error) {
+func inventoryFromCSV(csvString string, saleId int, hasHeader bool) ([]Inventory, error) {
 
 	var out []Inventory
 
-	csvfile, err := os.Open(fname)
-	if err != nil {
-		return out, err
-	}
-	defer csvfile.Close()
-
-	reader := csv.NewReader(csvfile)
+	reader := csv.NewReader(strings.NewReader(csvString))
 
 	reader.FieldsPerRecord = 10
 
@@ -52,8 +52,8 @@ func loadInventoryFromCSV(fname string, saleId int) ([]Inventory, error) {
 
 	for idx, rec := range rawCSVdata {
 
-		if idx == 0 {
-			// TODO: add check here for format on headers
+		if hasHeader && idx == 0 {
+			// skip header row
 			continue
 		}
 
@@ -90,29 +90,84 @@ func loadInventoryFromCSV(fname string, saleId int) ([]Inventory, error) {
 
 }
 
-func GetInventory(c *gin.Context) {
-	//TODO: Normally, this should take the SaleID as the search parameter
-	// For testing, load from test fixture file
-
-	inventory, err := loadInventoryFromCSV("./test/inventory.csv", 1)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	orderQ := c.Query("order")
-	saleQ := c.Query("sale")
-	
-	var queryName string
-	switch {
-		case len(orderQ) > 0:
-			// TODO: need query that uses order number to look up saleID
-			queryName = "order-" + orderQ
-		case len(saleQ) > 0:
-			queryName = "sale-" + saleQ
-		default:
-			c.AbortWithError(422, errors.APIError{422, "sale or order ID does not exist in query string", "sale or order ID does not exist in query string"})
+func CreateInventoryFromCSVString(db *sqlx.DB) gin.HandlerFunc {
+	return func (c *gin.Context) {
+		var inv csvInventory
+		
+		err := c.Bind(&inv)
+		
+		if err != nil {
+			fmt.Println(err)
+			c.AbortWithError(503, errors.APIError{503, "failed on binding inventory", "internal server error"})
 			return
+		}
+		
+		inventory, err := inventoryFromCSV(inv.CSV, inv.SaleId, inv.Header)
+		if err != nil {
+			fmt.Println(err)
+			c.AbortWithError(422, errors.APIError{422, "failed to parse inventory", "internal server error"})
+			return
+		}
+		
+		var dbErr error
+		var invId int
+		for _, inv1 := range inventory {
+			dbErr = db.Get(&invId,
+				`INSERT INTO gaea.inventory 
+				(inventory_id, sale_id, updated_at, supplier_id, name, description,
+				abv, size, year, nonmem_price, mem_price, types, origin) 
+				VALUES (DEFAULT, $1, $2, $3, $4, $5,
+				$6, $7, $8, $9, $10, $11, $12) RETURNING inventory_id`,
+				inv1.SaleID, inv1.UpdatedAt,
+				inv1.SupplierID, inv1.Name, inv1.Description,
+				inv1.Abv, inv1.Size, inv1.Year, inv1.NonmemPrice, inv1.MemPrice,
+				inv1.Types, inv1.Origin)
+			if dbErr != nil {
+				fmt.Println(inv1)
+				fmt.Println(dbErr)
+				c.AbortWithError(422, errors.APIError{422, "failed to insert inventory in db", "internal server error"})
+				return
+			}
+			inv1.InventoryID = invId
+		}
+		c.JSON(200, inventory)
 	}
+}
+
+func GetInventory(db *sqlx.DB) gin.HandlerFunc {
 	
-	c.JSON(200, gin.H{"inventory": inventory, "query": queryName, "qty": len(inventory)})
+	return func (c *gin.Context) {
+
+	
+		orderQ := c.Query("order")
+		saleQ := c.Query("sale")
+		
+		var queryName string
+		var saleId int
+		switch {
+			case len(orderQ) > 0:
+				queryName = "order-" + orderQ
+				err := db.Get(&saleId, "SELECT sale_id FROM gaea.order WHERE order_id=$1", orderQ)
+				if err != nil {
+					fmt.Println(err)
+					c.AbortWithError(422, errors.APIError{422, "order ID does not exist", "order ID does not exist"})
+					return
+				}
+			case len(saleQ) > 0:
+				queryName = "sale-" + saleQ
+				saleId, _ = strconv.Atoi(saleQ)
+			default:
+				c.AbortWithError(422, errors.APIError{422, "sale or order ID does not exist in query string", "sale or order ID does not exist in query string"})
+				return
+		}
+		
+		var inv []Inventory
+		dbErr := db.Select(&inv, "SELECT * FROM gaea.inventory WHERE sale_id=$1", saleId)
+		if dbErr != nil {
+			fmt.Println(dbErr)
+			c.AbortWithError(422, errors.APIError{422, "sale ID does not exist", "sale ID does not exist"})
+			return
+		}
+		c.JSON(200, gin.H{"inventory": inv, "query": queryName, "qty": len(inv)})
+	}
 }

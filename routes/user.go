@@ -99,7 +99,7 @@ func DeleteUser(db *sqlx.DB) gin.HandlerFunc {
 			return
 		}
 		
-		dbErr := db.MustExec(`DELETE gaea.sale WHERE user_name = $1`, user1.UserName)
+		dbErr := db.MustExec(`DELETE gaea.user WHERE user_name = $1`, user1.UserName)
 		if dbErr != nil {
 			fmt.Println(dbErr)
 			c.AbortWithError(503, errors.APIError{503, "failed on updating user", "failed to update user"})

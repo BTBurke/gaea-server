@@ -8,30 +8,32 @@ import "strings"
 import "strconv"
 import "fmt"
 import "github.com/jmoiron/sqlx"
+import "github.com/shopspring/decimal"
+import "github.com/guregu/null/zero"
 
 // Inventory represents a single inventory item that is associated with
 // an offered sale.  Changes are recorded in the changelog.
 type Inventory struct {
-	InventoryID int       `json:"inventory_id"`
-	SaleID      int       `json:"sale_id"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	SupplierID  string    `json:"supplier_id"`
-	Name        string    `json:"name"`
-	Description string    `json:"desc"`
-	Abv         string    `json:"abv"`
-	Size        string    `json:"size"`
-	Year        string    `json:"year"`
-	NonmemPrice int       `json:"nonmem_price"` // nonmember price in RMB (int)
-	MemPrice    int       `json:"mem_price"`    // member price in RMB (int)
-	Types       []string  `json:"types"`
-	Origin      []string  `json:"origin"`
-	Changelog   []string  `json:"changelog"`
+	InventoryID int             `json:"inventory_id" db:"inventory_id"`
+	SaleID      int             `json:"sale_id" db:"sale_id"`
+	UpdatedAt   time.Time       `json:"updated_at" db:"updated_at"`
+	SupplierID  string          `json:"supplier_id" db:"supplier_id"`
+	Name        string          `json:"name" db:"name"`
+	Description zero.String     `json:"desc" db:"description"`
+	Abv         zero.String     `json:"abv" db:"abv"`
+	Size        zero.String     `json:"size" db:"size"`
+	Year        zero.String     `json:"year" db:"year"`
+	NonmemPrice decimal.Decimal `json:"nonmem_price" db:"nonmem_price"` // nonmember price in USD (7,2)precision
+	MemPrice    decimal.Decimal `json:"mem_price" db:"mem_price"`       // member price in USD (7,2)precision
+	Types       zero.String     `json:"types" db:"types"`               //String-representation of list, > delimiter
+	Origin      zero.String     `json:"origin" db:"origin"`             //String-representation of list, > delimiter
+	Changelog   zero.String     `json:"changelog" db:"changelog"`       //String-representation of list, > delimiter
 }
 
 type csvInventory struct {
-	CSV string `json:"csv"`
-	SaleId int `json:"sale_id"`
-	Header bool `json:"header"`
+	CSV    string `json:"csv"`
+	SaleId int    `json:"sale_id"`
+	Header bool   `json:"header"`
 }
 
 // loadInventoryFromCSV loads the inventory from a local or uploaded
@@ -57,12 +59,12 @@ func inventoryFromCSV(csvString string, saleId int, hasHeader bool) ([]Inventory
 			continue
 		}
 
-		nonmemPrice, err := strconv.Atoi(rec[6])
+		nonmemPrice, err := decimal.NewFromString(rec[6])
 		if err != nil {
 			return out, err
 		}
 
-		memPrice, err := strconv.Atoi(rec[7])
+		memPrice, err := decimal.NewFromString(rec[7])
 		if err != nil {
 			return out, err
 		}
@@ -73,14 +75,14 @@ func inventoryFromCSV(csvString string, saleId int, hasHeader bool) ([]Inventory
 		t.InventoryID = idx
 		t.SupplierID = rec[0]
 		t.Name = rec[1]
-		t.Description = rec[2]
-		t.Abv = rec[3]
-		t.Size = rec[4]
-		t.Year = rec[5]
+		t.Description = zero.StringFrom(rec[2])
+		t.Abv = zero.StringFrom(rec[3])
+		t.Size = zero.StringFrom(rec[4])
+		t.Year = zero.StringFrom(rec[5])
 		t.NonmemPrice = nonmemPrice
 		t.MemPrice = memPrice
-		t.Types = strings.Split(rec[8], ">")
-		t.Origin = strings.Split(rec[9], ">")
+		t.Types = zero.StringFrom(rec[8])
+		t.Origin = zero.StringFrom(rec[9])
 
 		out = append(out, t)
 
@@ -91,24 +93,24 @@ func inventoryFromCSV(csvString string, saleId int, hasHeader bool) ([]Inventory
 }
 
 func CreateInventoryFromCSVString(db *sqlx.DB) gin.HandlerFunc {
-	return func (c *gin.Context) {
+	return func(c *gin.Context) {
 		var inv csvInventory
-		
+
 		err := c.Bind(&inv)
-		
+
 		if err != nil {
 			fmt.Println(err)
 			c.AbortWithError(503, errors.APIError{503, "failed on binding inventory", "internal server error"})
 			return
 		}
-		
+
 		inventory, err := inventoryFromCSV(inv.CSV, inv.SaleId, inv.Header)
 		if err != nil {
 			fmt.Println(err)
 			c.AbortWithError(422, errors.APIError{422, "failed to parse inventory", "internal server error"})
 			return
 		}
-		
+
 		var dbErr error
 		var invId int
 		for _, inv1 := range inventory {
@@ -135,32 +137,31 @@ func CreateInventoryFromCSVString(db *sqlx.DB) gin.HandlerFunc {
 }
 
 func GetInventory(db *sqlx.DB) gin.HandlerFunc {
-	
-	return func (c *gin.Context) {
 
-	
+	return func(c *gin.Context) {
+
 		orderQ := c.Query("order")
 		saleQ := c.Query("sale")
-		
+
 		var queryName string
 		var saleId int
 		switch {
-			case len(orderQ) > 0:
-				queryName = "order-" + orderQ
-				err := db.Get(&saleId, "SELECT sale_id FROM gaea.order WHERE order_id=$1", orderQ)
-				if err != nil {
-					fmt.Println(err)
-					c.AbortWithError(422, errors.APIError{422, "order ID does not exist", "order ID does not exist"})
-					return
-				}
-			case len(saleQ) > 0:
-				queryName = "sale-" + saleQ
-				saleId, _ = strconv.Atoi(saleQ)
-			default:
-				c.AbortWithError(422, errors.APIError{422, "sale or order ID does not exist in query string", "sale or order ID does not exist in query string"})
+		case len(orderQ) > 0:
+			queryName = "order-" + orderQ
+			err := db.Get(&saleId, "SELECT sale_id FROM gaea.order WHERE order_id=$1", orderQ)
+			if err != nil {
+				fmt.Println(err)
+				c.AbortWithError(422, errors.APIError{422, "order ID does not exist", "order ID does not exist"})
 				return
+			}
+		case len(saleQ) > 0:
+			queryName = "sale-" + saleQ
+			saleId, _ = strconv.Atoi(saleQ)
+		default:
+			c.AbortWithError(422, errors.APIError{422, "sale or order ID does not exist in query string", "sale or order ID does not exist in query string"})
+			return
 		}
-		
+
 		var inv []Inventory
 		dbErr := db.Select(&inv, "SELECT * FROM gaea.inventory WHERE sale_id=$1", saleId)
 		if dbErr != nil {

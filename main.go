@@ -5,7 +5,7 @@ import "github.com/BTBurke/gaea-server/routes"
 import "github.com/BTBurke/gaea-server/middleware"
 
 import _ "github.com/lib/pq"
-import "gopkg.in/pg.v3"
+//import "gopkg.in/pg.v3"
 
 //import "database/sql"
 import "github.com/jmoiron/sqlx"
@@ -41,7 +41,7 @@ func main() {
 	r.POST("/sale", routes.CreateSale(db))
 	r.PUT("/sale/:saleID", routes.UpdateSale(db))
 
-	r.GET("/order", routes.GetOrders)
+	r.GET("/order", routes.GetOrders(db))
 	r.POST("/order", routes.CreateOrder(db))
 	r.GET("/order/:orderID/item", routes.GetOrderItems(db))
 	r.POST("/order/:orderID/item", routes.AddOrderItem(db))

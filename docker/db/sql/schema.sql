@@ -26,18 +26,18 @@ CREATE TABLE gaea.sale (
 CREATE TABLE gaea.inventory (
     inventory_id serial PRIMARY KEY,
     sale_id serial REFERENCES gaea.sale (sale_id),
-    updated_at timestamp,
+    updated_at timestamp NOT NULL,
     supplier_id text NOT NULL,
     name text NOT NULL,
     description text,
     abv text,
     size text,
     year text,
-    nonmem_price money,
-    mem_price money NOT NULL,
-    types text[],
-    origin text[],
-    changelog text[]
+    nonmem_price numeric(7,2) NOT NULL,
+    mem_price numeric(7,2) NOT NULL,
+    types text,
+    origin text,
+    changelog text
 );
 
 

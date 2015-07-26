@@ -11,12 +11,12 @@ import "github.com/BTBurke/gaea-server/errors"
 // Order represents a single order transaction on behalf of a user.  It is
 // associated with a sale and has a status of open, submit, or deliver.
 type Order struct {
-	SaleId      int    `json:"sale_id"`
-	Status      string    `json:"status"` // Set {Saved, Submit, Paid, Deliver}
-	StatusDate  time.Time `json:"status_date"`
-	UserName    string    `json:"user_name"`
-	OrderId     int    `json:"order_id"`
-	SaleType    string    `json:"sale_type"`
+	SaleId      int    `json:"sale_id" db:"sale_id"`
+	Status      string    `json:"status" db:"status"` // Set {Saved, Submit, Paid, Deliver}
+	StatusDate  time.Time `json:"status_date" db:"status_date"`
+	UserName    string    `json:"user_name" db:"user_name"`
+	OrderId     int    `json:"order_id" db:"order_id"`
+	SaleType    string    `json:"sale_type" db:"sale_type"`
 	ItemQty     int       `json:"item_qty"`
 	AmountTotal int       `json:"amount_total"`
 }
@@ -24,18 +24,18 @@ type Order struct {
 // An OrderItem represents a single line transaction in an order for a Qty
 // of an InventoryItem.
 type OrderItem struct {
-	Qty         int       `json:"qty"`
-	InventoryId int    `json:"inventory_id"`
-	OrderId     int    `json:"order_id"`
-	OrderitemId int    `json:"orderitem_id",db:"orderitem_id"`
-	UserName    string    `json:"user_name"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	Qty         int       `json:"qty" db:"qty"`
+	InventoryId int    `json:"inventory_id" db:"inventory_id"`
+	OrderId     int    `json:"order_id" db:"order_id"`
+	OrderitemId int    `json:"orderitem_id" db:"orderitem_id"`
+	UserName    string    `json:"user_name" db:"user_name"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
 
-type orders struct {
-	Qty    int     `json:"qty"`
-	Orders []Order `json:"orders"`
-}
+// type orders struct {
+// 	Qty    int     `json:"qty"`
+// 	Orders []Order `json:"orders"`
+// }
 
 type orderItems struct {
 	Qty        int         `json:"qty"`
@@ -43,24 +43,36 @@ type orderItems struct {
 }
 
 // GET for all orders by user
-func GetOrders(c *gin.Context) {
-	oOrder := Order{
-		SaleId:      99,
-		Status:      "saved",
-		StatusDate:  time.Date(2015, time.June, 6, 0, 0, 0, 0, time.UTC),
-		UserName:    "ambassadorjs",
-		OrderId:     23,
-		SaleType:    "alcohol",
-		ItemQty:     0,
-		AmountTotal: 0,
-	}
-	ordersR := orders{
-		Qty:    1,
-		Orders: []Order{oOrder},
-	}
-	c.JSON(200, ordersR)
-}
+func GetOrders (db *sqlx.DB) gin.HandlerFunc {
 
+	return func (c *gin.Context) {
+	
+		//for testing until JWT implemented
+		uName := "burkebt"
+		
+		var ords []Order
+		var qtyOrd int
+		
+		err1 := db.Get(&qtyOrd, `SELECT COUNT(*) FROM gaea.order WHERE user_name=$1`,
+			uName)
+		if err1 != nil {
+			fmt.Println(err1)
+			c.AbortWithError(503, errors.APIError{503, "failed to get orders", "internal server error"})
+			return
+		}
+		if qtyOrd > 0 {
+			err2 := db.Select(&ords, `SELECT * FROM gaea.order WHERE user_name=$1`,
+				uName)
+			if err2 != nil {
+				fmt.Println(err2)
+				c.AbortWithError(503, errors.APIError{503, "failed to get orders", "internal server error"})
+				return
+			}
+		}
+		
+		c.JSON(200, gin.H{"qty": qtyOrd, "orders": ords})
+	}
+}
 // Post to create a new order
 func CreateOrder(db *sqlx.DB) gin.HandlerFunc {
 	return func (c *gin.Context) {
@@ -76,21 +88,22 @@ func CreateOrder(db *sqlx.DB) gin.HandlerFunc {
 		ord.StatusDate = time.Now()
 		ord.Status = "saved"
 		
-		// dbErr := db.MustExec("INSERT INTO gaea.order (order_id, sale_id, status, status_date, user_name, sale_type) VALUES (DEFAULT, $1, $2, $3, $4, $5)",
-		// 	ord.SaleId,
-		// 	ord.Status,
-		// 	ord.StatusDate,
-		// 	ord.UserName,
-		// 	ord.SaleType)
+		var returnID int
+		dbErr := db.Get(&returnID, `INSERT INTO gaea.order
+		(order_id, sale_id, status, status_date, user_name, sale_type) VALUES 
+		(DEFAULT, $1, $2, $3, $4, $5) RETURNING order_id`,
+			ord.SaleId,
+			ord.Status,
+			ord.StatusDate,
+			ord.UserName,
+			ord.SaleType)
 		
-		// if dbErr != nil {
-		// 	fmt.Println(dbErr)
-		// 	c.AbortWithError(503, error.APIError{503, "failed to bind new order", "internal server error"})
-		// 	return
-		// }
-		
-		//remove below after testing
-		ord.OrderId = 10
+		if dbErr != nil {
+			fmt.Println(dbErr)
+			c.AbortWithError(503, errors.APIError{503, "failed to bind new order", "internal server error"})
+			return
+		}
+		ord.OrderId = returnID
 		
 		c.JSON(200, ord)
 	}
@@ -143,15 +156,17 @@ func AddOrderItem(db *sqlx.DB) gin.HandlerFunc {
 		
 		newItem.UpdatedAt = time.Now()
 		
-		dbErr := db.MustExec(`INSERT INTO gaea.orderitem
-			(order_id, inventory_id, qty, updated_at, user_name)
-			VALUES ($1, $2, $3, $4, $5)`, newItem.OrderId, newItem.InventoryId, newItem.Qty, newItem.UpdatedAt, newItem.UserName)
+		var returnID int
+		dbErr := db.Get(&returnID, `INSERT INTO gaea.orderitem
+			(orderitem_id, order_id, inventory_id, qty, updated_at, user_name)
+			VALUES (DEFAULT, $1, $2, $3, $4, $5) RETURNING orderitem_id`, newItem.OrderId, newItem.InventoryId, newItem.Qty, newItem.UpdatedAt, newItem.UserName)
 		if dbErr != nil {
 			fmt.Println("error on db entry")
 			fmt.Println(dbErr)
 			c.AbortWithError(503, errors.APIError{503, "failed on inserting order items", "internal server error"})
 			return
 		}
+		newItem.OrderitemId = returnID
 		c.JSON(200, newItem)
 	}
 }

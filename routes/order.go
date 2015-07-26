@@ -133,11 +133,8 @@ func GetOrderItems(db *sqlx.DB) gin.HandlerFunc {
 				return
 			}
 		}
-		out := orderItems{
-				Qty: count,
-				OrderItems: oItems,
-		}
-		c.JSON(200, out)
+
+		c.JSON(200, gin.H{"qty": count, "order_items": oItems, "query": "order-"+orderID})
 	}
 }
 

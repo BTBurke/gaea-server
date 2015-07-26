@@ -115,9 +115,9 @@ func CreateInventoryFromCSVString(db *sqlx.DB) gin.HandlerFunc {
 		var invId int
 		for _, inv1 := range inventory {
 			dbErr = db.Get(&invId,
-				`INSERT INTO gaea.inventory 
+				`INSERT INTO gaea.inventory
 				(inventory_id, sale_id, updated_at, supplier_id, name, description,
-				abv, size, year, nonmem_price, mem_price, types, origin) 
+				abv, size, year, nonmem_price, mem_price, types, origin)
 				VALUES (DEFAULT, $1, $2, $3, $4, $5,
 				$6, $7, $8, $9, $10, $11, $12) RETURNING inventory_id`,
 				inv1.SaleID, inv1.UpdatedAt,

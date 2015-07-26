@@ -16,79 +16,79 @@ type Sale struct {
 	OpenDate  time.Time `json:"open_date" db:"open_date"`
 	CloseDate time.Time `json:"close_date" db:"close_date"`
 	SaleType  string    `json:"sale_type" db:"sale_type"` //Set{'alcohol', 'merchandise'}
-	SaleId    int      `json:"sale_id" db:"sale_id"`
+	SaleId    int       `json:"sale_id" db:"sale_id"`
 	Status    string    `json:"status" db:"status"` //Set('open', 'closed', 'deliver', 'complete')
 	Salescopy string    `json:"sales_copy" db:"salescopy"`
 }
 
-
-
-// updateSaleStatus returns a new array of sales with updated status and 
+// updateSaleStatus returns a new array of sales with updated status and
 // also updates their current status in the DB
 func updateSaleStatus(db *sqlx.DB, sales []Sale) ([]Sale, error) {
-	
+
 	var retSales []Sale
 	for _, sale := range sales {
 		switch {
-			case sale.Status == "complete":
-				retSales = append(retSales, sale)
-				continue
-			case time.Now().Before(sale.CloseDate):
-				// handle corner case hack where sale closes then is extended
-				// TODO: could update database here to reflect back to open, but hack works fine
-				sale.Status = "open"
-				retSales = append(retSales, sale)
-				continue
-			case time.Now().After(sale.CloseDate):
-				fmt.Println("found someone to update")
-				var deliveredOrders int
-				var openOrders int
-				err := db.Get(&deliveredOrders, 
-					"SELECT COUNT(*) FROM gaea.order WHERE sale_id = $1 AND status = 'deliver'",
+		case sale.Status == "complete":
+			retSales = append(retSales, sale)
+			continue
+		case time.Now().Before(sale.CloseDate):
+			// handle corner case hack where sale closes then is extended
+			// TODO: could update database here to reflect back to open, but hack works fine
+			sale.Status = "open"
+			retSales = append(retSales, sale)
+			continue
+		case time.Now().After(sale.CloseDate):
+			fmt.Println("found someone to update")
+			var deliveredOrders int
+			var openOrders int
+			err := db.Get(&deliveredOrders,
+				"SELECT COUNT(*) FROM gaea.order WHERE sale_id = $1 AND status = 'deliver'",
+				sale.SaleId)
+			if err != nil {
+				return []Sale{}, err
+			}
+			err2 := db.Get(&openOrders,
+				"SELECT COUNT(*) FROM gaea.order WHERE sale_id = $1 AND status != 'deliver'",
+				sale.SaleId)
+			if err2 != nil {
+				return []Sale{}, err2
+			}
+			var newStatus string
+			switch {
+			case deliveredOrders > 0 && openOrders > 0:
+				newStatus = "deliver"
+			case deliveredOrders > 0 && openOrders == 0:
+				newStatus = "complete"
+			case deliveredOrders == 0 && openOrders > 0:
+				newStatus = "closed"
+			case deliveredOrders == 0 && openOrders == 0:
+				// unlikely event that sale opens/closes but
+				// with no orders
+				newStatus = "complete"
+			}
+			if newStatus != sale.Status {
+				err3 := db.Get(&sale.Status,
+					"UPDATE gaea.sale SET status = $1 WHERE sale_id = $2 RETURNING status",
+					newStatus,
 					sale.SaleId)
-				if err != nil {
-					return []Sale{}, err
+				if err3 != nil {
+					return []Sale{}, err3
 				}
-				err2 := db.Get(&openOrders,
-					"SELECT COUNT(*) FROM gaea.order WHERE sale_id = $1 AND status != 'deliver'",
-					sale.SaleId)
-				if err2 != nil {
-					return []Sale{}, err2
-				}
-				var newStatus string
-				switch {
-					case deliveredOrders > 0 && openOrders > 0:
-						newStatus = "deliver"
-					case deliveredOrders > 0 && openOrders == 0:
-						newStatus = "complete"
-					case deliveredOrders == 0 && openOrders > 0:
-						newStatus = "closed"
-					case deliveredOrders == 0 && openOrders == 0:
-						// unlikely event that sale opens/closes but
-						// with no orders
-						newStatus = "complete"
-				}
-				if (newStatus != sale.Status) {
-					err3 := db.Get(&sale.Status,
-						"UPDATE gaea.sale SET status = $1 WHERE sale_id = $2 RETURNING status",
-						newStatus,
-						sale.SaleId)
-					if err3 != nil {
-						return []Sale{}, err3
-					}
-				}
-				retSales = append(retSales, sale)
-		}	
+			}
+			retSales = append(retSales, sale)
+		}
 	}
 	return retSales, nil
 }
 
 // GetCurrentSale returns only open sales.  Currently only for testing.
 func GetSales(db *sqlx.DB) gin.HandlerFunc {
-	return func (c *gin.Context) {
-			sales := []Sale{}
+	return func(c *gin.Context) {
+
+		sales := []Sale{}
 		err := db.Select(&sales, "SELECT * FROM gaea.sale")
 		if err != nil {
+			fmt.Println(err)
 			c.AbortWithError(503, errors.APIError{503, "failed on getting sales", "internal server error"})
 			return
 		}
@@ -103,15 +103,15 @@ func GetSales(db *sqlx.DB) gin.HandlerFunc {
 
 // UpdateSale will update the details of a sale
 func UpdateSale(db *sqlx.DB) gin.HandlerFunc {
-	return func (c *gin.Context) {
+	return func(c *gin.Context) {
 		var update Sale
-	
+
 		err := c.Bind(&update)
 		if err != nil {
 			c.AbortWithError(422, errors.APIError{422, "format wrong on sale update", "internal server error"})
 			return
 		}
-		
+
 		var updatedSale Sale
 		err2 := db.Get(&updatedSale,
 			"UPDATE gaea.sale SET open_date=$1, close_date=$2, salescopy=$3 WHERE sale_id=$4 RETURNING *",
@@ -123,7 +123,7 @@ func UpdateSale(db *sqlx.DB) gin.HandlerFunc {
 			c.AbortWithError(503, errors.APIError{503, "failed on updating sale", "internal server error"})
 			return
 		}
-		
+
 		c.JSON(200, updatedSale)
 	}
 }

@@ -35,7 +35,7 @@ CREATE TABLE gaea.inventory (
     year text,
     nonmem_price numeric(7,2) NOT NULL,
     mem_price numeric(7,2) NOT NULL,
-    types text,
+    types text NOT NULL,
     origin text,
     changelog text
 );

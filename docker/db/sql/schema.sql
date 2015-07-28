@@ -37,6 +37,7 @@ CREATE TABLE gaea.inventory (
     mem_price numeric(7,2) NOT NULL,
     types text NOT NULL,
     origin text,
+    in_stock boolean,
     changelog text
 );
 

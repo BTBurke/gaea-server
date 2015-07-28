@@ -27,6 +27,7 @@ type Inventory struct {
 	MemPrice    decimal.Decimal `json:"mem_price" db:"mem_price"`       // member price in USD (7,2)precision
 	Types       zero.String     `json:"types" db:"types"`               //String-representation of list, > delimiter
 	Origin      zero.String     `json:"origin" db:"origin"`             //String-representation of list, > delimiter
+	InStock		bool			`json:"in_stock" db:"in_stock"`
 	Changelog   zero.String     `json:"changelog" db:"changelog"`       //String-representation of list, > delimiter
 }
 
@@ -117,13 +118,13 @@ func CreateInventoryFromCSVString(db *sqlx.DB) gin.HandlerFunc {
 			dbErr = db.Get(&invId,
 				`INSERT INTO gaea.inventory
 				(inventory_id, sale_id, updated_at, supplier_id, name, description,
-				abv, size, year, nonmem_price, mem_price, types, origin)
+				abv, size, year, nonmem_price, mem_price, types, origin, in_stock)
 				VALUES (DEFAULT, $1, $2, $3, $4, $5,
-				$6, $7, $8, $9, $10, $11, $12) RETURNING inventory_id`,
+				$6, $7, $8, $9, $10, $11, $12, $13) RETURNING inventory_id`,
 				inv1.SaleID, inv1.UpdatedAt,
 				inv1.SupplierID, inv1.Name, inv1.Description,
 				inv1.Abv, inv1.Size, inv1.Year, inv1.NonmemPrice, inv1.MemPrice,
-				inv1.Types, inv1.Origin)
+				inv1.Types, inv1.Origin, true)
 			if dbErr != nil {
 				fmt.Println(inv1)
 				fmt.Println(dbErr)
@@ -132,7 +133,8 @@ func CreateInventoryFromCSVString(db *sqlx.DB) gin.HandlerFunc {
 			}
 			inv1.InventoryID = invId
 		}
-		c.JSON(200, inventory)
+		query := "sale-" + strconv.Itoa(inv.SaleId)
+		c.JSON(200, gin.H{"qty": len(inventory), "inventory": inventory, "query": query})
 	}
 }
 

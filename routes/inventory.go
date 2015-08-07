@@ -101,14 +101,14 @@ func CreateInventoryFromCSVString(db *sqlx.DB) gin.HandlerFunc {
 
 		if err != nil {
 			fmt.Println(err)
-			c.AbortWithError(503, errors.APIError{503, "failed on binding inventory", "internal server error"})
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on binding inventory", "internal server error", c))
 			return
 		}
 
 		inventory, err := inventoryFromCSV(inv.CSV, inv.SaleId, inv.Header)
 		if err != nil {
 			fmt.Println(err)
-			c.AbortWithError(422, errors.APIError{422, "failed to parse inventory", "internal server error"})
+			c.AbortWithError(422, errors.NewAPIError(422, "failed to parse inventory", "internal server error", c))
 			return
 		}
 
@@ -128,7 +128,7 @@ func CreateInventoryFromCSVString(db *sqlx.DB) gin.HandlerFunc {
 			if dbErr != nil {
 				fmt.Println(inv1)
 				fmt.Println(dbErr)
-				c.AbortWithError(422, errors.APIError{422, "failed to insert inventory in db", "internal server error"})
+				c.AbortWithError(422, errors.NewAPIError(422, "failed to insert inventory in db", "internal server error",c))
 				return
 			}
 			inv1.InventoryID = invId
@@ -153,14 +153,14 @@ func GetInventory(db *sqlx.DB) gin.HandlerFunc {
 			err := db.Get(&saleId, "SELECT sale_id FROM gaea.order WHERE order_id=$1", orderQ)
 			if err != nil {
 				fmt.Println(err)
-				c.AbortWithError(422, errors.APIError{422, "order ID does not exist", "order ID does not exist"})
+				c.AbortWithError(422, errors.NewAPIError(422, "order ID does not exist", "order ID does not exist", c))
 				return
 			}
 		case len(saleQ) > 0:
 			queryName = "sale-" + saleQ
 			saleId, _ = strconv.Atoi(saleQ)
 		default:
-			c.AbortWithError(422, errors.APIError{422, "sale or order ID does not exist in query string", "sale or order ID does not exist in query string"})
+			c.AbortWithError(422, errors.NewAPIError(422, "sale or order ID does not exist in query string", "sale or order ID does not exist in query string", c))
 			return
 		}
 
@@ -168,7 +168,7 @@ func GetInventory(db *sqlx.DB) gin.HandlerFunc {
 		dbErr := db.Select(&inv, "SELECT * FROM gaea.inventory WHERE sale_id=$1", saleId)
 		if dbErr != nil {
 			fmt.Println(dbErr)
-			c.AbortWithError(422, errors.APIError{422, "sale ID does not exist", "sale ID does not exist"})
+			c.AbortWithError(422, errors.NewAPIError(422, "sale ID does not exist", "sale ID does not exist", c))
 			return
 		}
 		c.JSON(200, gin.H{"inventory": inv, "query": queryName, "qty": len(inv)})

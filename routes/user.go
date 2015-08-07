@@ -34,7 +34,7 @@ func GetCurrentUser(db *sqlx.DB) gin.HandlerFunc {
 		err := db.Get(&user1, "SELECT * from gaea.user WHERE user_name=$1", userName)
 		if err != nil {
 			fmt.Println(err)
-			c.AbortWithError(503, errors.APIError{503, "failed on getting user", "internal server error"})
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on getting user", "internal server error",c))
 			return
 		}
 		c.JSON(200, user1)
@@ -50,7 +50,7 @@ func GetAllUsers(db *sqlx.DB) gin.HandlerFunc {
 		err := db.Select(&users, "SELECT * FROM gaea.user")
 		if err != nil {
 			fmt.Println(err)
-			c.AbortWithError(503, errors.APIError{503, "failed on getting all users", "failed to get all users"})
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on getting all users", "failed to get all users",c))
 			return
 		}
 		
@@ -66,7 +66,7 @@ func UpdateUser(db *sqlx.DB) gin.HandlerFunc {
 		err := c.Bind(&user1)
 		if err != nil {
 			fmt.Println(err)
-			c.AbortWithError(422, errors.APIError{422, "failed on updating user", "failed to update user"})
+			c.AbortWithError(422, errors.NewAPIError(422, "failed on updating user", "failed to update user",c))
 			return
 		}
 		
@@ -81,7 +81,7 @@ func UpdateUser(db *sqlx.DB) gin.HandlerFunc {
 		
 		if dbErr != nil {
 			fmt.Println(dbErr)
-			c.AbortWithError(503, errors.APIError{503, "failed on updating user", "failed to update user"})
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on updating user", "failed to update user",c))
 			return		
 		}
 		
@@ -95,14 +95,14 @@ func DeleteUser(db *sqlx.DB) gin.HandlerFunc {
 		err := c.Bind(&user1)
 		if err != nil {
 			fmt.Println(err)
-			c.AbortWithError(422, errors.APIError{422, "failed on deleting user", "failed to delete user"})
+			c.AbortWithError(422, errors.NewAPIError(422, "failed on deleting user", "failed to delete user",c))
 			return
 		}
 		
 		dbErr := db.MustExec(`DELETE gaea.user WHERE user_name = $1`, user1.UserName)
 		if dbErr != nil {
 			fmt.Println(dbErr)
-			c.AbortWithError(503, errors.APIError{503, "failed on updating user", "failed to update user"})
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on updating user", "failed to update user",c))
 			return		
 		}
 		

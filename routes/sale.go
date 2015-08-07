@@ -89,12 +89,12 @@ func GetSales(db *sqlx.DB) gin.HandlerFunc {
 		err := db.Select(&sales, "SELECT * FROM gaea.sale")
 		if err != nil {
 			fmt.Println(err)
-			c.AbortWithError(503, errors.APIError{503, "failed on getting sales", "internal server error"})
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on getting sales", "internal server error",c))
 			return
 		}
 		updatedSales, err := updateSaleStatus(db, sales)
 		if err != nil {
-			c.AbortWithError(503, errors.APIError{503, "failed on updating sales", "internal server error"})
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on updating sales", "internal server error",c))
 			return
 		}
 		c.JSON(200, gin.H{"qty": len(updatedSales), "sales": updatedSales})
@@ -108,7 +108,7 @@ func UpdateSale(db *sqlx.DB) gin.HandlerFunc {
 
 		err := c.Bind(&update)
 		if err != nil {
-			c.AbortWithError(422, errors.APIError{422, "format wrong on sale update", "internal server error"})
+			c.AbortWithError(422, errors.NewAPIError(422, "format wrong on sale update", "internal server error",c))
 			return
 		}
 
@@ -120,7 +120,7 @@ func UpdateSale(db *sqlx.DB) gin.HandlerFunc {
 			update.Salescopy,
 			update.SaleId)
 		if err2 != nil {
-			c.AbortWithError(503, errors.APIError{503, "failed on updating sale", "internal server error"})
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on updating sale", "internal server error",c))
 			return
 		}
 
@@ -148,7 +148,7 @@ func CreateSale(db *sqlx.DB) gin.HandlerFunc {
 			newSale.Salescopy)
 		if dbErr != nil {
 			fmt.Println(dbErr)
-			c.AbortWithError(503, errors.APIError{503, "failed on inserting a new sale", "internal server error"})
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on inserting a new sale", "internal server error",c))
 			return
 		}
 		c.JSON(200, retSale)

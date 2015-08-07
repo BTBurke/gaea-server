@@ -57,7 +57,7 @@ func GetOrders (db *sqlx.DB) gin.HandlerFunc {
 			uName)
 		if err1 != nil {
 			fmt.Println(err1)
-			c.AbortWithError(503, errors.APIError{503, "failed to get orders", "internal server error"})
+			c.AbortWithError(503, errors.NewAPIError(503, "failed to get orders", "internal server error",c))
 			return
 		}
 		if qtyOrd > 0 {
@@ -65,7 +65,7 @@ func GetOrders (db *sqlx.DB) gin.HandlerFunc {
 				uName)
 			if err2 != nil {
 				fmt.Println(err2)
-				c.AbortWithError(503, errors.APIError{503, "failed to get orders", "internal server error"})
+				c.AbortWithError(503, errors.NewAPIError(503, "failed to get orders", "internal server error",c))
 				return
 			}
 		}
@@ -81,7 +81,7 @@ func CreateOrder(db *sqlx.DB) gin.HandlerFunc {
 		err := c.Bind(&ord)
 		if err != nil {
 			fmt.Println(err)
-			c.AbortWithError(503, errors.APIError{503, "failed to create new order", "internal server error"})
+			c.AbortWithError(503, errors.NewAPIError(503, "failed to create new order", "internal server error",c))
 			return
 		}
 		
@@ -100,7 +100,7 @@ func CreateOrder(db *sqlx.DB) gin.HandlerFunc {
 		
 		if dbErr != nil {
 			fmt.Println(dbErr)
-			c.AbortWithError(503, errors.APIError{503, "failed to bind new order", "internal server error"})
+			c.AbortWithError(503, errors.NewAPIError(503, "failed to bind new order", "internal server error",c))
 			return
 		}
 		ord.OrderId = returnID
@@ -121,7 +121,7 @@ func GetOrderItems(db *sqlx.DB) gin.HandlerFunc {
 		countErr := db.Get(&count, "SELECT COUNT(*) from gaea.orderitem WHERE order_id=$1", orderID)
 		if countErr != nil {
 			fmt.Println(countErr)
-			c.AbortWithError(503, errors.APIError{503, "failed on getting count of order items", "internal server error"})
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on getting count of order items", "internal server error",c))
 			return
 		}
 		if count > 0 {
@@ -129,7 +129,7 @@ func GetOrderItems(db *sqlx.DB) gin.HandlerFunc {
 			fmt.Println(oItems)
 			if err != nil {
 				fmt.Println(err)
-				c.AbortWithError(503, errors.APIError{503, "failed on getting order items", "internal server error"})
+				c.AbortWithError(503, errors.NewAPIError(503, "failed on getting order items", "internal server error",c))
 				return
 			}
 		}
@@ -160,7 +160,7 @@ func AddOrderItem(db *sqlx.DB) gin.HandlerFunc {
 		if dbErr != nil {
 			fmt.Println("error on db entry")
 			fmt.Println(dbErr)
-			c.AbortWithError(503, errors.APIError{503, "failed on inserting order items", "internal server error"})
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on inserting order items", "internal server error",c))
 			return
 		}
 		newItem.OrderitemId = returnID

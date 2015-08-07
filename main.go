@@ -3,6 +3,7 @@ package main
 import "github.com/gin-gonic/gin"
 import "github.com/BTBurke/gaea-server/routes"
 import "github.com/BTBurke/gaea-server/middleware"
+import "github.com/BTBurke/gaea-server/errors"
 
 import _ "github.com/lib/pq"
 //import "gopkg.in/pg.v3"
@@ -28,6 +29,13 @@ func main() {
 
 	r.GET("/401", func(c *gin.Context) {
 		c.String(401, "Unauthorized")
+	})
+	
+	r.GET("/error", func(c *gin.Context) {
+		c.Set("user", "usertest")
+		c.Set("role", "admin")
+		c.AbortWithError(422, errors.NewAPIError(422, "test error development msg", "test error user message", c))
+		return
 	})
 
 	r.GET("/user", routes.GetCurrentUser(db))

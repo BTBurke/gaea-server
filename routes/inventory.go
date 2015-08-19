@@ -10,6 +10,7 @@ import "fmt"
 import "github.com/jmoiron/sqlx"
 import "github.com/shopspring/decimal"
 import "github.com/guregu/null/zero"
+import "database/sql"
 
 // Inventory represents a single inventory item that is associated with
 // an offered sale.  Changes are recorded in the changelog.
@@ -27,8 +28,8 @@ type Inventory struct {
 	MemPrice    decimal.Decimal `json:"mem_price" db:"mem_price"`       // member price in USD (7,2)precision
 	Types       zero.String     `json:"types" db:"types"`               //String-representation of list, > delimiter
 	Origin      zero.String     `json:"origin" db:"origin"`             //String-representation of list, > delimiter
-	InStock		bool			`json:"in_stock" db:"in_stock"`
-	Changelog   zero.String     `json:"changelog" db:"changelog"`       //String-representation of list, > delimiter
+	InStock     bool            `json:"in_stock" db:"in_stock"`
+	Changelog   zero.String     `json:"changelog" db:"changelog"` //String-representation of list, > delimiter
 }
 
 type csvInventory struct {
@@ -38,9 +39,9 @@ type csvInventory struct {
 }
 
 type updateInventory struct {
-	Old Inventory `json:"old"`
-	New Inventory `json:"new"`
-	ChangeFields []string `json:"change_fields"`
+	Old          Inventory `json:"old"`
+	New          Inventory `json:"new"`
+	ChangeFields []string  `json:"change_fields"`
 }
 
 // loadInventoryFromCSV loads the inventory from a local or uploaded
@@ -134,7 +135,7 @@ func CreateInventoryFromCSVString(db *sqlx.DB) gin.HandlerFunc {
 			if dbErr != nil {
 				fmt.Println(inv1)
 				fmt.Println(dbErr)
-				c.AbortWithError(422, errors.NewAPIError(422, "failed to insert inventory in db", "internal server error",c))
+				c.AbortWithError(422, errors.NewAPIError(422, "failed to insert inventory in db", "internal server error", c))
 				return
 			}
 			inv1.InventoryID = invId
@@ -185,35 +186,35 @@ func CreateItem(db *sqlx.DB) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		var inv Inventory
-		
+
 		err := c.Bind(&inv)
 		if err != nil {
 			fmt.Println(err)
 			c.AbortWithError(503, errors.NewAPIError(503, "failed on binding inventory", "internal server error", c))
 			return
 		}
-		
+
 		var invId int
 		dbErr := db.Get(&invId,
-				`INSERT INTO gaea.inventory
+			`INSERT INTO gaea.inventory
 				(inventory_id, sale_id, updated_at, supplier_id, name, description,
 				abv, size, year, nonmem_price, mem_price, types, origin, in_stock)
 				VALUES (DEFAULT, $1, $2, $3, $4, $5,
 				$6, $7, $8, $9, $10, $11, $12, $13) RETURNING inventory_id`,
-				inv.SaleID, time.Now(),
-				inv.SupplierID, inv.Name, inv.Description,
-				inv.Abv, inv.Size, inv.Year, inv.NonmemPrice, inv.MemPrice,
-				inv.Types, inv.Origin, inv.InStock)
+			inv.SaleID, time.Now(),
+			inv.SupplierID, inv.Name, inv.Description,
+			inv.Abv, inv.Size, inv.Year, inv.NonmemPrice, inv.MemPrice,
+			inv.Types, inv.Origin, inv.InStock)
 		if dbErr != nil {
 			fmt.Println(inv)
 			fmt.Println(dbErr)
-			c.AbortWithError(422, errors.NewAPIError(422, "failed to insert inventory in db", "internal server error",c))
+			c.AbortWithError(422, errors.NewAPIError(422, "failed to insert inventory in db", "internal server error", c))
 			return
 		}
 		inv.InventoryID = invId
-		
+
 		saleId := strconv.Itoa(inv.SaleID)
-		c.JSON(200, gin.H{"inventory": inv, "query": "sale-"+saleId})
+		c.JSON(200, gin.H{"inventory": inv, "query": "sale-" + saleId})
 	}
 }
 
@@ -221,31 +222,73 @@ func UpdateItem(db *sqlx.DB) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		var chg updateInventory
-		
+
 		err := c.Bind(&chg)
 		if err != nil {
 			fmt.Println(err)
 			c.AbortWithError(503, errors.NewAPIError(503, "failed on binding inventory", "internal server error", c))
 			return
 		}
-		
+
 		var inv = chg.New
 		var invResult Inventory
 		dbErr := db.Get(&invResult,
-				`UPDATE gaea.inventory SET sale_id=$1, updated_at=$2, supplier_id=$3, name=$4, description=$5,
+			`UPDATE gaea.inventory SET sale_id=$1, updated_at=$2, supplier_id=$3, name=$4, description=$5,
 				abv=$6, size=$7, year=$8, nonmem_price=$9, mem_price=$10, types=$11, origin=$12, in_stock=$13, changelog=$14
 				WHERE inventory_id=$15 RETURNING *`,
-				inv.SaleID, time.Now(),
-				inv.SupplierID, inv.Name, inv.Description,
-				inv.Abv, inv.Size, inv.Year, inv.NonmemPrice, inv.MemPrice,
-				inv.Types, inv.Origin, inv.InStock, inv.Changelog, inv.InventoryID)
+			inv.SaleID, time.Now(),
+			inv.SupplierID, inv.Name, inv.Description,
+			inv.Abv, inv.Size, inv.Year, inv.NonmemPrice, inv.MemPrice,
+			inv.Types, inv.Origin, inv.InStock, inv.Changelog, inv.InventoryID)
 		if dbErr != nil {
 			fmt.Println(inv)
 			fmt.Println(dbErr)
-			c.AbortWithError(422, errors.NewAPIError(422, "failed to update inventory in db", "internal server error",c))
+			c.AbortWithError(422, errors.NewAPIError(422, "failed to update inventory in db", "internal server error", c))
 			return
 		}
 		saleId := strconv.Itoa(inv.SaleID)
-		c.JSON(200, gin.H{"inventory": inv, "query": "sale-"+saleId})
+		c.JSON(200, gin.H{"inventory": inv, "query": "sale-" + saleId})
 	}
+}
+
+func GetEffects(db *sqlx.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		inventoryIDAsString := c.Param("invID")
+		inventoryID, err := strconv.Atoi(inventoryIDAsString)
+		if err != nil {
+			c.AbortWithError(422, errors.NewAPIError(422, "failed to convert inventory ID to int", "internal server error", c))
+			return
+		}
+
+		users, err := findAffectedUsers(inventoryID, db)
+		if err != nil {
+			c.AbortWithError(422, errors.NewAPIError(422, "failed to find affected users", "internal server error", c))
+			return
+		}
+		c.JSON(200, gin.H{"qty": len(users), "users": users, "query": "inv-" + inventoryIDAsString})
+	}
+}
+
+func findAffectedUsers(inventoryID int, db *sqlx.DB) ([]User, error) {
+	var userIDs []string
+	err := db.Select(&userIDs, "SELECT (user_name) FROM gaea.orderitem WHERE inventory_id = $1", inventoryID)
+	if err != nil {
+		switch {
+		case err == sql.ErrNoRows:
+			return []User{}, nil
+		default:
+			return nil, err
+		}
+	}
+	var user1 User
+	var users []User
+	var dbErr error
+	for _, user := range userIDs {
+		dbErr = db.Get(&user1, "SELECT * from gaea.user where user_name = $1", user)
+		if dbErr != nil {
+			return nil, dbErr
+		}
+		users = append(users, user1)
+	}
+	return users, nil
 }

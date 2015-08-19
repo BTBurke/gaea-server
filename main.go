@@ -6,6 +6,7 @@ import "github.com/BTBurke/gaea-server/middleware"
 import "github.com/BTBurke/gaea-server/errors"
 
 import _ "github.com/lib/pq"
+
 //import "gopkg.in/pg.v3"
 
 //import "database/sql"
@@ -30,7 +31,7 @@ func main() {
 	r.GET("/401", func(c *gin.Context) {
 		c.String(401, "Unauthorized")
 	})
-	
+
 	r.GET("/error", func(c *gin.Context) {
 		c.Set("user", "usertest")
 		c.Set("role", "admin")
@@ -41,11 +42,12 @@ func main() {
 	r.GET("/user", routes.GetCurrentUser(db))
 
 	r.GET("/announcement", routes.GetAnnouncements)
-	
+
 	r.GET("/inventory", routes.GetInventory(db))
 	r.POST("/inventory/csv", routes.CreateInventoryFromCSVString(db))
 	r.POST("/inventory", routes.CreateItem(db))
 	r.PUT("/inventory/:invID", routes.UpdateItem(db))
+	r.GET("/inventory/:invID/effects", routes.GetEffects(db))
 
 	r.GET("/sale", routes.GetSales(db))
 	r.POST("/sale", routes.CreateSale(db))

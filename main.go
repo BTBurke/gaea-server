@@ -44,6 +44,8 @@ func main() {
 	
 	r.GET("/inventory", routes.GetInventory(db))
 	r.POST("/inventory/csv", routes.CreateInventoryFromCSVString(db))
+	r.POST("/inventory", routes.CreateItem(db))
+	r.PUT("/inventory/:invID", routes.UpdateItem(db))
 
 	r.GET("/sale", routes.GetSales(db))
 	r.POST("/sale", routes.CreateSale(db))

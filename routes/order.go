@@ -5,6 +5,8 @@ import "time"
 import "fmt"
 import "github.com/jmoiron/sqlx"
 import "github.com/BTBurke/gaea-server/errors"
+import "github.com/shopspring/decimal"
+import "database/sql"
 
 
 
@@ -18,7 +20,7 @@ type Order struct {
 	OrderId     int    `json:"order_id" db:"order_id"`
 	SaleType    string    `json:"sale_type" db:"sale_type"`
 	ItemQty     int       `json:"item_qty"`
-	AmountTotal int       `json:"amount_total"`
+	AmountTotal decimal.Decimal       `json:"amount_total"`
 }
 
 // An OrderItem represents a single line transaction in an order for a Qty
@@ -32,10 +34,7 @@ type OrderItem struct {
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
 
-// type orders struct {
-// 	Qty    int     `json:"qty"`
-// 	Orders []Order `json:"orders"`
-// }
+
 
 type orderItems struct {
 	Qty        int         `json:"qty"`
@@ -49,8 +48,10 @@ func GetOrders (db *sqlx.DB) gin.HandlerFunc {
 	
 		//for testing until JWT implemented
 		uName := "burkebt"
+		memberStatus := true
 		
 		var ords []Order
+		var retOrds []Order
 		var qtyOrd int
 		
 		err1 := db.Get(&qtyOrd, `SELECT COUNT(*) FROM gaea.order WHERE user_name=$1`,
@@ -68,9 +69,19 @@ func GetOrders (db *sqlx.DB) gin.HandlerFunc {
 				c.AbortWithError(503, errors.NewAPIError(503, "failed to get orders", "internal server error",c))
 				return
 			}
+			
+			var amtErr error
+			
+			for _, order := range ords {
+				order.ItemQty, order.AmountTotal, amtErr = CalcOrderTotals(order.OrderId, memberStatus, db)
+				if amtErr != nil {
+					fmt.Printf("%s", amtErr)
+				}
+				retOrds = append(retOrds, order)
+			}
 		}
 		
-		c.JSON(200, gin.H{"qty": qtyOrd, "orders": ords})
+		c.JSON(200, gin.H{"qty": qtyOrd, "orders": retOrds})
 	}
 }
 // Post to create a new order
@@ -106,6 +117,40 @@ func CreateOrder(db *sqlx.DB) gin.HandlerFunc {
 		ord.OrderId = returnID
 		
 		c.JSON(200, ord)
+	}
+}
+
+func UpdateOrderStatus(db *sqlx.DB) gin.HandlerFunc {
+	return func (c *gin.Context) {
+		var updOrder Order
+		err := c.Bind(&updOrder)
+		if err != nil {
+			fmt.Println(err)
+			c.AbortWithError(503, errors.NewAPIError(503, fmt.Sprintf("failed on binding to updated order : %s", err), "internal server error",c))
+			return
+		}
+		
+		saleOpen, err := CheckOrderOpen(updOrder.OrderId, db)
+		if err != nil {
+			c.AbortWithError(503, errors.NewAPIError(503, fmt.Sprintf("CheckOpenOrder returned an error : %s", err), "Internal Server Error",c))
+			return
+		}
+		if (!saleOpen) {
+			c.AbortWithError(409, errors.NewAPIError(409, "sale not open", "Cannot fufill request because the associated sale is not open.",c))
+			return
+		}
+		
+		var retOrder Order
+		dbErr := db.Get(&retOrder, "UPDATE gaea.order SET status=$1, status_date=$2 WHERE order_id=$3 RETURNING *",
+			updOrder.Status, time.Now(), updOrder.OrderId)
+		if dbErr != nil {
+			fmt.Println(err)
+			c.AbortWithError(503, errors.NewAPIError(503, fmt.Sprintf("failed on updating order : %s", err), "internal server error",c))
+			return
+		}
+		
+		c.JSON(200, retOrder)
+		
 	}
 }
 
@@ -188,4 +233,65 @@ func UpdateOrderItem(c *gin.Context) {
 	}
 	
 	c.JSON(200, updateItem)
+}
+
+// CheckOrderOpen will check the status of the associated sale, returning true if the time
+// is between the open and close dates, and false otherwise
+func CheckOrderOpen(orderID int, db *sqlx.DB) (bool, error) {
+	
+		var assocSale Sale
+		dbErr := db.Get(&assocSale, "SELECT * FROM gaea.sale WHERE sale_id = $1", orderID)
+		if dbErr != nil {
+			return false, dbErr
+		}
+		
+		switch {
+			case time.Now().Before(assocSale.OpenDate):
+				return false, nil
+			case time.Now().After(assocSale.CloseDate):
+				return false, nil
+			default:
+				return true, nil
+		}
+		
+		return true, nil
+}
+
+// CalcOrderTotals will calculate the total amount and quantity of items for a given order.
+// Returns a fixed precision decimal.Decimal number.
+func CalcOrderTotals(orderID int, member bool, db *sqlx.DB) (int, decimal.Decimal, error) {
+	
+	var oItems []OrderItem
+	err := db.Select(&oItems, "SELECT * FROM gaea.orderitem WHERE order_id = $1", orderID)
+	if err != nil {
+		switch {
+		case err == sql.ErrNoRows:
+			return 0, decimal.NewFromFloat(0), nil
+		default:
+			return 0, decimal.NewFromFloat(0), err
+		}
+	}
+	
+	var dbErr error
+	var total decimal.Decimal
+	var inv Inventory
+	var totalQty int
+	var decQty decimal.Decimal
+	for _, item := range oItems {
+		dbErr = db.Get(&inv, "SELECT * FROM gaea.inventory WHERE inventory_id=$1", item.InventoryId)
+		if dbErr != nil {
+			return 0, decimal.NewFromFloat(0), dbErr
+		}
+		switch {
+			case member:
+				decQty = decimal.New(int64(item.Qty), 0)
+				total = total.Add(inv.MemPrice.Mul(decQty))
+			default:
+				decQty = decimal.New(int64(item.Qty), 0)
+				total = total.Add(inv.NonmemPrice.Mul(decQty))
+		}
+		totalQty = totalQty + item.Qty
+	}
+	
+	return totalQty, total, nil
 }

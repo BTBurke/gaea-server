@@ -68,22 +68,6 @@ func sendLog(errorType string, s serverError, c *gin.Context) {
     }
 }
 
-// func sendLog2(s serverError, c *gin.Context) {
-//     rollrus.SetupLogging(os.Getenv("ROLLBAR_TOKEN"), os.Getenv("ENVIRONMENT"))
-   
-//     user, _ := c.Get("user")
-//     role, _ := c.Get("role")
-            
-//     log.WithFields(log.Fields{
-//         "code": s.Code,
-//         "user": user,
-//         "role": role,
-//         "params": parseParams(c),
-//         "route": c.Request.URL,
-//         "method": c.Request.Method,
-//     }).Error(s.Developer)
-// }
-
 func parseParams(c *gin.Context) string {
     var out []string
     for _, param := range c.Params {

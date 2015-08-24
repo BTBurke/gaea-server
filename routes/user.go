@@ -6,7 +6,6 @@ import "github.com/jmoiron/sqlx"
 import "github.com/BTBurke/gaea-server/errors"
 import "github.com/guregu/null/zero"
 import "fmt"
-
 import "time"
 
 type User struct {
@@ -21,6 +20,7 @@ type User struct {
 	Section     zero.String `json:"section" db:"section"`
 	UpdatedAt   time.Time   `json:"-" db:"updated_at"`
 	UpdateToken zero.String `json:"-" db:"update_token"`
+	LastLogin	time.Time   `json:"-" db:"last_login"`
 }
 
 func GetCurrentUser(db *sqlx.DB) gin.HandlerFunc {

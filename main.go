@@ -31,6 +31,8 @@ func main() {
 	r.GET("/401", func(c *gin.Context) {
 		c.String(401, "Unauthorized")
 	})
+	
+	
 
 	r.GET("/error", func(c *gin.Context) {
 		c.Set("user", "usertest")
@@ -39,6 +41,7 @@ func main() {
 		return
 	})
 
+	r.POST("/login", routes.Login(db))
 	r.GET("/user", routes.GetCurrentUser(db))
 
 	r.GET("/announcement", routes.GetAnnouncements)

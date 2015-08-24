@@ -11,7 +11,8 @@ CREATE TABLE gaea.user (
     passport text,
     section text,
     updated_at timestamp NOT NULL,
-    update_token text
+    update_token text,
+    last_login timestamp
 );
 
 CREATE TABLE gaea.sale (

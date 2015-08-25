@@ -67,12 +67,12 @@ func inventoryFromCSV(csvString string, saleId int, hasHeader bool) ([]Inventory
 			continue
 		}
 
-		nonmemPrice, err := decimal.NewFromString(rec[6])
+		nonmemPrice, err := decimal.NewFromString(strings.TrimSpace(rec[6]))
 		if err != nil {
 			return out, err
 		}
 
-		memPrice, err := decimal.NewFromString(rec[7])
+		memPrice, err := decimal.NewFromString(strings.TrimSpace(rec[7]))
 		if err != nil {
 			return out, err
 		}
@@ -91,6 +91,7 @@ func inventoryFromCSV(csvString string, saleId int, hasHeader bool) ([]Inventory
 		t.MemPrice = memPrice
 		t.Types = zero.StringFrom(rec[8])
 		t.Origin = zero.StringFrom(rec[9])
+		t.InStock = true
 
 		out = append(out, t)
 
@@ -131,7 +132,7 @@ func CreateInventoryFromCSVString(db *sqlx.DB) gin.HandlerFunc {
 				inv1.SaleID, inv1.UpdatedAt,
 				inv1.SupplierID, inv1.Name, inv1.Description,
 				inv1.Abv, inv1.Size, inv1.Year, inv1.NonmemPrice, inv1.MemPrice,
-				inv1.Types, inv1.Origin, true)
+				inv1.Types, inv1.Origin, inv1.InStock)
 			if dbErr != nil {
 				fmt.Println(inv1)
 				fmt.Println(dbErr)

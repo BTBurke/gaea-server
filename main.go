@@ -6,10 +6,6 @@ import "github.com/BTBurke/gaea-server/middleware"
 import "github.com/BTBurke/gaea-server/errors"
 
 import _ "github.com/lib/pq"
-
-//import "gopkg.in/pg.v3"
-
-//import "database/sql"
 import "github.com/jmoiron/sqlx"
 
 import "log"
@@ -58,15 +54,14 @@ func main() {
 
 	r.GET("/order", routes.GetOrders(db))
 	r.POST("/order", routes.CreateOrder(db))
+	r.PUT("/order/:orderID", routes.UpdateOrderStatus(db))
 	r.GET("/order/:orderID/item", routes.GetOrderItems(db))
 	r.POST("/order/:orderID/item", routes.AddOrderItem(db))
 	r.DELETE("/order/:orderID/item/:itemID", routes.DeleteOrderItem)
-	r.PUT("/order/:orderID/item/:itemID", routes.UpdateOrderItem)
+	r.PUT("/order/:orderID/item/:itemID", routes.UpdateOrderItem(db))
 
 	// When developing on c9
 	r.Run(":8080")
 
-	// Local development
-	//r.Run(":9000")
 
 }

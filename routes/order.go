@@ -198,6 +198,18 @@ func AddOrderItem(db *sqlx.DB) gin.HandlerFunc {
 		
 		newItem.UpdatedAt = time.Now()
 		
+		// check to make sure sale is still open
+		saleOpen, err := CheckOrderOpen(newItem.OrderId, db)
+		if err != nil {
+			c.AbortWithError(503, errors.NewAPIError(503, fmt.Sprintf("CheckOpenOrder returned an error : %s", err), "Internal Server Error",c))
+			return
+		}
+		if (!saleOpen) {
+			c.AbortWithError(409, errors.NewAPIError(409, "sale not open", "Cannot fufill request because the associated sale is not open.",c))
+			return
+		}
+		
+		
 		var returnID int
 		dbErr := db.Get(&returnID, `INSERT INTO gaea.orderitem
 			(orderitem_id, order_id, inventory_id, qty, updated_at, user_name)
@@ -218,29 +230,61 @@ func DeleteOrderItem(c *gin.Context) {
 	orderItemID := c.Param("itemID")
 	
 	
+	
 	c.JSON(200, gin.H{"order_item_id": orderItemID})
 	
 }
 
 // PUT update an existing order item
-func UpdateOrderItem(c *gin.Context) {
-	var updateItem OrderItem
+func UpdateOrderItem(db *sqlx.DB) gin.HandlerFunc {
 	
-	err := c.Bind(&updateItem)
-	if err != nil {
-		fmt.Println(err)
-		c.JSON(422, gin.H{"error": "Data provided in wrong format, unable to complete request."}) 
+	return func(c *gin.Context) {
+		var updateItem OrderItem
+	
+		err := c.Bind(&updateItem)
+		if err != nil {
+			fmt.Println(err)
+			c.JSON(422, gin.H{"error": "Data provided in wrong format, unable to complete request."})
+			return
+		}
+		
+		// Check order is still open before updating
+		saleOpen, err := CheckOrderOpen(updateItem.OrderId, db)
+		if err != nil {
+			c.AbortWithError(503, errors.NewAPIError(503, fmt.Sprintf("CheckOpenOrder returned an error : %s", err), "Internal Server Error",c))
+			return
+		}
+		if (!saleOpen) {
+			c.AbortWithError(409, errors.NewAPIError(409, "sale not open", "Cannot fufill request because the associated sale is not open.",c))
+			return
+		}
+		
+		var returnItem OrderItem
+		dbErr := db.Get(&returnItem, `UPDATE gaea.orderitem SET qty=$1, updated_at=$2 WHERE
+			orderitem_id=$3 RETURNING *`, updateItem.Qty, time.Now(), updateItem.OrderitemId)
+		if dbErr != nil {
+			fmt.Println(dbErr)
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on updating order item", "internal server error",c))
+			return
+		}
+		
+		
+		c.JSON(200, returnItem)
 	}
-	
-	c.JSON(200, updateItem)
 }
 
 // CheckOrderOpen will check the status of the associated sale, returning true if the time
 // is between the open and close dates, and false otherwise
 func CheckOrderOpen(orderID int, db *sqlx.DB) (bool, error) {
 	
+		var saleId int
+		dbErr1 := db.Get(&saleId, "SELECT sale_id FROM gaea.order WHERE order_id=$1", orderID);
+		if dbErr1 != nil {
+			return false, dbErr1
+		}
+	
 		var assocSale Sale
-		dbErr := db.Get(&assocSale, "SELECT * FROM gaea.sale WHERE sale_id = $1", orderID)
+		dbErr := db.Get(&assocSale, "SELECT * FROM gaea.sale WHERE sale_id = $1", saleId)
 		if dbErr != nil {
 			return false, dbErr
 		}

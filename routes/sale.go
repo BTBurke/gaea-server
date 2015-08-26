@@ -17,7 +17,7 @@ type Sale struct {
 	CloseDate time.Time `json:"close_date" db:"close_date"`
 	SaleType  string    `json:"sale_type" db:"sale_type"` //Set{'alcohol', 'merchandise'}
 	SaleId    int       `json:"sale_id" db:"sale_id"`
-	Status    string    `json:"status" db:"status"` //Set('open', 'closed', 'deliver', 'complete')
+	Status    string    `json:"status" db:"status"` //Set('open', 'closed', 'final', 'deliver', 'complete')
 	Salescopy string    `json:"sales_copy" db:"salescopy"`
 }
 
@@ -37,7 +37,7 @@ func updateSaleStatus(db *sqlx.DB, sales []Sale) ([]Sale, error) {
 			sale.Status = "open"
 			retSales = append(retSales, sale)
 			continue
-		case time.Now().After(sale.CloseDate):
+		case time.Now().After(sale.CloseDate) && sale.Status == "final":
 			fmt.Println("found someone to update")
 			var deliveredOrders int
 			var openOrders int

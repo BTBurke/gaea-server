@@ -12,7 +12,9 @@ CREATE TABLE gaea.user (
     section text,
     updated_at timestamp NOT NULL,
     update_token text,
-    last_login timestamp
+    last_login timestamp NOT NULL,
+    member_exp timestamp NOT NULL,
+    member_type text
 );
 
 CREATE TABLE gaea.sale (
@@ -72,7 +74,10 @@ INSERT INTO gaea.user (
     passport,
     section,
     updated_at,
-    update_token
+    update_token,
+    last_login,
+    member_exp,
+    member_type
     ) VALUES (
     'burkebt',
     'Bryan',
@@ -84,5 +89,8 @@ INSERT INTO gaea.user (
     '910267372',
     'NIV',
     '2015-06-06T00:00:00Z',
-    ''
+    '',
+    '1900-01-01T00:00:00Z',
+    '2016-04-01T00:00:00Z',
+    "family"
 );

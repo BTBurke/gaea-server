@@ -14,7 +14,8 @@ CREATE TABLE gaea.user (
     update_token text,
     last_login timestamp NOT NULL,
     member_exp timestamp NOT NULL,
-    member_type text
+    member_type text,
+    stripe_token text
 );
 
 CREATE TABLE gaea.sale (
@@ -23,7 +24,8 @@ CREATE TABLE gaea.sale (
     open_date timestamp NOT NULL,
     close_date timestamp NOT NULL,
     status text NOT NULL,
-    salescopy text NOT NULL
+    salescopy text NOT NULL,
+    require_final boolean NOT NULL
 );
 
 CREATE TABLE gaea.inventory (
@@ -61,6 +63,25 @@ CREATE TABLE gaea.orderitem (
     qty integer NOT NULL,
     updated_at timestamp,
     user_name text REFERENCES gaea.user (user_name)
+);
+
+CREATE TABLE gaea.transaction (
+    transaction_id serial PRIMARY KEY,
+    sale_id serial REFERENCES gaea.sale (sale_id),
+    order_id serial REFERENCES gaea.order (order_id),
+    user_name REFERENCES gaea.user (user_name),
+    from text NOT NULL,
+    to text NOT NULL,
+    description text NOT NULL,
+    amount numeric(7,2) NOT NULL,
+    type text NOT NULL,
+    status text NOT NULL,
+    track text,
+    notes text,
+    pay_date timestamp,
+    updated_at timestamp,
+    authorized_by1 text REFERENCES gaea.user (user_name),
+    authorized_by2 text REFERENCES gaea.user (user_name)
 );
 
 INSERT INTO gaea.user (

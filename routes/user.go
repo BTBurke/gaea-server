@@ -23,6 +23,7 @@ type User struct {
 	LastLogin   time.Time   `json:"-" db:"last_login"`
 	MemberExp   time.Time   `json:"member_exp" db:"member_exp"`
 	MemberType  zero.String `json:"member_type" db:"member_type"`
+	StripeToken zero.String `json:"-" db:"stripe_token"`
 }
 
 func GetCurrentUser(db *sqlx.DB) gin.HandlerFunc {

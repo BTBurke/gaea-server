@@ -51,6 +51,7 @@ func main() {
 	r.GET("/sale", routes.GetSales(db))
 	r.POST("/sale", routes.CreateSale(db))
 	r.PUT("/sale/:saleID", routes.UpdateSale(db))
+	r.GET("/sale/:saleID/all", routes.GetAllOrdersForSale(db))
 
 	r.GET("/order", routes.GetOrders(db))
 	r.POST("/order", routes.CreateOrder(db))
@@ -59,6 +60,8 @@ func main() {
 	r.POST("/order/:orderID/item", routes.AddOrderItem(db))
 	r.DELETE("/order/:orderID/item/:itemID", routes.DeleteOrderItem)
 	r.PUT("/order/:orderID/item/:itemID", routes.UpdateOrderItem(db))
+
+	r.POST("/transaction", routes.CreateTransaction(db))
 
 	// When developing on c9
 	r.Run(":8080")

@@ -2,12 +2,15 @@ package routes
 
 import (
 	"fmt"
+	"database/sql"
+	"strconv"
+	"time"
 
 	"github.com/BTBurke/gaea-server/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
+	"github.com/shopspring/decimal"
 )
-import "time"
 
 // Sale represents items offered for sale by GAEA with an opening and closing
 // time.  The inventory key is a foreign key used to query from the inventory
@@ -19,6 +22,7 @@ type Sale struct {
 	SaleId    int       `json:"sale_id" db:"sale_id"`
 	Status    string    `json:"status" db:"status"` //Set('open', 'closed', 'final', 'deliver', 'complete')
 	Salescopy string    `json:"sales_copy" db:"salescopy"`
+	RequireFinal bool `json:"require_final" db:"require_final"` //if true, sale requires manual shift to status=final before associated transactions are set to paid
 }
 
 // updateSaleStatus returns a new array of sales with updated status and
@@ -152,5 +156,91 @@ func CreateSale(db *sqlx.DB) gin.HandlerFunc {
 			return
 		}
 		c.JSON(200, retSale)
+	}
+}
+
+// GetAllOrdersForSale returns a data structure consisting of all orders, users, and items
+// associated with the sale
+func GetAllOrdersForSale(db *sqlx.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		saleIDAsString := c.Param("saleID")
+		saleID, err := strconv.Atoi(saleIDAsString)
+		if err != nil {
+			fmt.Println(err)
+			c.AbortWithError(422, errors.NewAPIError(422, "failed to get sale ID", "unknown sale ID",c))
+			return
+		}
+		
+		var allOrdersBeforeTotals []Order
+		orderErr := db.Select(&allOrdersBeforeTotals, "SELECT * FROM gaea.order WHERE sale_id=$1", saleID)
+		if orderErr != nil {
+			switch {
+				case orderErr == sql.ErrNoRows:
+					c.JSON(200, gin.H{"sale_id": saleID, "users": []User{}, "orders": []Order{}, "items": []OrderItem{}})
+					return
+				default:
+					fmt.Println(err)
+					c.AbortWithError(503, errors.NewAPIError(503, "failed to get orders for sale ID", "internal server error",c))
+					return
+			}
+		}
+		
+		var allOrders []Order
+		var allOrderItems []OrderItem
+		var allUsers []User
+		var user1 User
+		var items1 []OrderItem
+		var qty int
+		var total decimal.Decimal
+		var dbErr, calcErr error
+		var isMember bool
+		for _, order := range allOrdersBeforeTotals {
+			dbErr = db.Get(&user1, "SELECT * FROM gaea.user WHERE user_name=$1", order.UserName)
+			if dbErr != nil {
+				fmt.Println(err)
+				c.AbortWithError(503, errors.NewAPIError(503, "failed to get user for order", "internal server error",c))
+				return
+			}
+						
+			allUsers = append(allUsers, user1)
+			
+			dbErr = db.Select(&items1, "SELECT * FROM gaea.orderitem WHERE order_id=$1", order.OrderId)
+			if dbErr != nil {
+				switch {
+					case dbErr == sql.ErrNoRows:
+						items1 = []OrderItem{}
+						continue
+					default:
+						fmt.Println(dbErr)
+						c.AbortWithError(503, errors.NewAPIError(503, "failed to get user for order", "internal server error",c))
+						return
+				}
+			}
+			
+			allOrderItems = append(allOrderItems, items1...)
+			
+			switch {
+				case user1.Role == "nonmember":
+					isMember = false
+					continue
+				default:
+					isMember = true
+			}
+			qty, total, calcErr = CalcOrderTotals(order.OrderId, isMember, db)
+			if calcErr != nil {
+				fmt.Println(calcErr)
+				c.AbortWithError(503, errors.NewAPIError(503, "failed to get user for order", "internal server error",c))
+				return
+			}
+			
+			order.ItemQty = qty
+			order.AmountTotal = total
+			
+			allOrders = append(allOrders, order)
+			
+		}
+		
+		c.JSON(200, gin.H{"sale_id": saleID, "orders": allOrders, "items": allOrderItems, "users": allUsers})
+		
 	}
 }

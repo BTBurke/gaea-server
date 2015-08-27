@@ -70,9 +70,9 @@ CREATE TABLE gaea.transaction (
     transaction_id serial PRIMARY KEY,
     sale_id serial REFERENCES gaea.sale (sale_id),
     order_id serial REFERENCES gaea.order (order_id),
-    user_name REFERENCES gaea.user (user_name),
-    from text NOT NULL,
-    to text NOT NULL,
+    user_name text REFERENCES gaea.user (user_name),
+    from0 text NOT NULL,
+    to1 text NOT NULL,
     description text NOT NULL,
     amount numeric(7,2) NOT NULL,
     type text NOT NULL,
@@ -99,7 +99,8 @@ INSERT INTO gaea.user (
     update_token,
     last_login,
     member_exp,
-    member_type
+    member_type,
+    stripe_token
     ) VALUES (
     'burkebt',
     'Bryan',
@@ -114,5 +115,6 @@ INSERT INTO gaea.user (
     '',
     '1900-01-01T00:00:00Z',
     '2016-04-01T00:00:00Z',
-    "family"
+    'family',
+    ''
 );

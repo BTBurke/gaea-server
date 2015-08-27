@@ -1,8 +1,8 @@
 package routes
 
 import (
-	"fmt"
 	"database/sql"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -16,14 +16,14 @@ import (
 // time.  The inventory key is a foreign key used to query from the inventory
 // table, representing items for sale.
 type Sale struct {
-	OpenDate  time.Time `json:"open_date" db:"open_date"`
-	CloseDate time.Time `json:"close_date" db:"close_date"`
-	SaleType  string    `json:"sale_type" db:"sale_type"` //Set{'alcohol', 'merchandise'}
-	SaleId    int       `json:"sale_id" db:"sale_id"`
-	Status    string    `json:"status" db:"status"` //Set('open', 'closed', 'final', 'deliver', 'complete')
-	Title string `json:"title" db:"title"`
-	Salescopy string    `json:"sales_copy" db:"salescopy"`
-	RequireFinal bool `json:"require_final" db:"require_final"` //if true, sale requires manual shift to status=final before associated transactions are set to paid
+	OpenDate     time.Time `json:"open_date" db:"open_date"`
+	CloseDate    time.Time `json:"close_date" db:"close_date"`
+	SaleType     string    `json:"sale_type" db:"sale_type"` //Set{'alcohol', 'merchandise'}
+	SaleId       int       `json:"sale_id" db:"sale_id"`
+	Status       string    `json:"status" db:"status"` //Set('open', 'closed', 'final', 'deliver', 'complete')
+	Title        string    `json:"title" db:"title"`
+	Salescopy    string    `json:"sales_copy" db:"salescopy"`
+	RequireFinal bool      `json:"require_final" db:"require_final"` //if true, sale requires manual shift to status=final before associated transactions are set to paid
 }
 
 // updateSaleStatus returns a new array of sales with updated status and
@@ -42,7 +42,7 @@ func updateSaleStatus(db *sqlx.DB, sales []Sale) ([]Sale, error) {
 			sale.Status = "open"
 			retSales = append(retSales, sale)
 			continue
-		case time.Now().After(sale.CloseDate) && sale.Status == "final":
+		case time.Now().After(sale.CloseDate):
 			fmt.Println("found someone to update")
 			var deliveredOrders int
 			var openOrders int
@@ -65,7 +65,13 @@ func updateSaleStatus(db *sqlx.DB, sales []Sale) ([]Sale, error) {
 			case deliveredOrders > 0 && openOrders == 0:
 				newStatus = "complete"
 			case deliveredOrders == 0 && openOrders > 0:
-				newStatus = "closed"
+				if sale.Status == "final" {
+					// if sale manually finalized, keep status until something
+					// marked as delivered
+					newStatus = "final"
+				} else {
+					newStatus = "closed"
+				}
 			case deliveredOrders == 0 && openOrders == 0:
 				// unlikely event that sale opens/closes but
 				// with no orders
@@ -94,12 +100,12 @@ func GetSales(db *sqlx.DB) gin.HandlerFunc {
 		err := db.Select(&sales, "SELECT * FROM gaea.sale")
 		if err != nil {
 			fmt.Println(err)
-			c.AbortWithError(503, errors.NewAPIError(503, "failed on getting sales", "internal server error",c))
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on getting sales", "internal server error", c))
 			return
 		}
 		updatedSales, err := updateSaleStatus(db, sales)
 		if err != nil {
-			c.AbortWithError(503, errors.NewAPIError(503, "failed on updating sales", "internal server error",c))
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on updating sales", "internal server error", c))
 			return
 		}
 		c.JSON(200, gin.H{"qty": len(updatedSales), "sales": updatedSales})
@@ -113,20 +119,21 @@ func UpdateSale(db *sqlx.DB) gin.HandlerFunc {
 
 		err := c.Bind(&update)
 		if err != nil {
-			c.AbortWithError(422, errors.NewAPIError(422, "format wrong on sale update", "internal server error",c))
+			c.AbortWithError(422, errors.NewAPIError(422, "format wrong on sale update", "internal server error", c))
 			return
 		}
 
 		var updatedSale Sale
 		err2 := db.Get(&updatedSale,
-			"UPDATE gaea.sale SET open_date=$1, close_date=$2, title=$3, salescopy=$4 WHERE sale_id=$5 RETURNING *",
+			"UPDATE gaea.sale SET open_date=$1, close_date=$2, title=$3, salescopy=$4, require_final=$5 WHERE sale_id=$6 RETURNING *",
 			update.OpenDate,
 			update.CloseDate,
 			update.Title,
 			update.Salescopy,
+			update.RequireFinal,
 			update.SaleId)
 		if err2 != nil {
-			c.AbortWithError(503, errors.NewAPIError(503, "failed on updating sale", "internal server error",c))
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on updating sale", "internal server error", c))
 			return
 		}
 
@@ -146,16 +153,17 @@ func CreateSale(db *sqlx.DB) gin.HandlerFunc {
 		}
 		var retSale Sale
 		dbErr := db.Get(&retSale,
-			"INSERT INTO gaea.sale (sale_id, sale_type, open_date, close_date, status, title, salescopy) VALUES (DEFAULT, $1, $2, $3, $4, $5, $6) RETURNING *",
+			"INSERT INTO gaea.sale (sale_id, sale_type, open_date, close_date, status, title, salescopy, require_final) VALUES (DEFAULT, $1, $2, $3, $4, $5, $6, $7) RETURNING *",
 			newSale.SaleType,
 			newSale.OpenDate,
 			newSale.CloseDate,
 			"open",
 			newSale.Title,
-			newSale.Salescopy)
+			newSale.Salescopy,
+			newSale.RequireFinal)
 		if dbErr != nil {
 			fmt.Println(dbErr)
-			c.AbortWithError(503, errors.NewAPIError(503, "failed on inserting a new sale", "internal server error",c))
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on inserting a new sale", "internal server error", c))
 			return
 		}
 		c.JSON(200, retSale)
@@ -170,24 +178,24 @@ func GetAllOrdersForSale(db *sqlx.DB) gin.HandlerFunc {
 		saleID, err := strconv.Atoi(saleIDAsString)
 		if err != nil {
 			fmt.Println(err)
-			c.AbortWithError(422, errors.NewAPIError(422, "failed to get sale ID", "unknown sale ID",c))
+			c.AbortWithError(422, errors.NewAPIError(422, "failed to get sale ID", "unknown sale ID", c))
 			return
 		}
-		
+
 		var allOrdersBeforeTotals []Order
 		orderErr := db.Select(&allOrdersBeforeTotals, "SELECT * FROM gaea.order WHERE sale_id=$1", saleID)
 		if orderErr != nil {
 			switch {
-				case orderErr == sql.ErrNoRows:
-					c.JSON(200, gin.H{"sale_id": saleID, "users": []User{}, "orders": []Order{}, "items": []OrderItem{}})
-					return
-				default:
-					fmt.Println(err)
-					c.AbortWithError(503, errors.NewAPIError(503, "failed to get orders for sale ID", "internal server error",c))
-					return
+			case orderErr == sql.ErrNoRows:
+				c.JSON(200, gin.H{"sale_id": saleID, "users": []User{}, "orders": []Order{}, "items": []OrderItem{}})
+				return
+			default:
+				fmt.Println(err)
+				c.AbortWithError(503, errors.NewAPIError(503, "failed to get orders for sale ID", "internal server error", c))
+				return
 			}
 		}
-		
+
 		var allOrders []Order
 		var allOrderItems []OrderItem
 		var allUsers []User
@@ -201,49 +209,49 @@ func GetAllOrdersForSale(db *sqlx.DB) gin.HandlerFunc {
 			dbErr = db.Get(&user1, "SELECT * FROM gaea.user WHERE user_name=$1", order.UserName)
 			if dbErr != nil {
 				fmt.Println(err)
-				c.AbortWithError(503, errors.NewAPIError(503, "failed to get user for order", "internal server error",c))
+				c.AbortWithError(503, errors.NewAPIError(503, "failed to get user for order", "internal server error", c))
 				return
 			}
-						
+
 			allUsers = append(allUsers, user1)
-			
+
 			dbErr = db.Select(&items1, "SELECT * FROM gaea.orderitem WHERE order_id=$1", order.OrderId)
 			if dbErr != nil {
 				switch {
-					case dbErr == sql.ErrNoRows:
-						items1 = []OrderItem{}
-						continue
-					default:
-						fmt.Println(dbErr)
-						c.AbortWithError(503, errors.NewAPIError(503, "failed to get user for order", "internal server error",c))
-						return
-				}
-			}
-			
-			allOrderItems = append(allOrderItems, items1...)
-			
-			switch {
-				case user1.Role == "nonmember":
-					isMember = false
+				case dbErr == sql.ErrNoRows:
+					items1 = []OrderItem{}
 					continue
 				default:
-					isMember = true
+					fmt.Println(dbErr)
+					c.AbortWithError(503, errors.NewAPIError(503, "failed to get user for order", "internal server error", c))
+					return
+				}
+			}
+
+			allOrderItems = append(allOrderItems, items1...)
+
+			switch {
+			case user1.Role == "nonmember":
+				isMember = false
+				continue
+			default:
+				isMember = true
 			}
 			qty, total, calcErr = CalcOrderTotals(order.OrderId, isMember, db)
 			if calcErr != nil {
 				fmt.Println(calcErr)
-				c.AbortWithError(503, errors.NewAPIError(503, "failed to get user for order", "internal server error",c))
+				c.AbortWithError(503, errors.NewAPIError(503, "failed to get user for order", "internal server error", c))
 				return
 			}
-			
+
 			order.ItemQty = qty
 			order.AmountTotal = total
-			
+
 			allOrders = append(allOrders, order)
-			
+
 		}
-		
+
 		c.JSON(200, gin.H{"sale_id": saleID, "orders": allOrders, "items": allOrderItems, "users": allUsers})
-		
+
 	}
 }

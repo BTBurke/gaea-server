@@ -21,6 +21,7 @@ type Sale struct {
 	SaleType  string    `json:"sale_type" db:"sale_type"` //Set{'alcohol', 'merchandise'}
 	SaleId    int       `json:"sale_id" db:"sale_id"`
 	Status    string    `json:"status" db:"status"` //Set('open', 'closed', 'final', 'deliver', 'complete')
+	Title string `json:"title" db:"title"`
 	Salescopy string    `json:"sales_copy" db:"salescopy"`
 	RequireFinal bool `json:"require_final" db:"require_final"` //if true, sale requires manual shift to status=final before associated transactions are set to paid
 }
@@ -118,9 +119,10 @@ func UpdateSale(db *sqlx.DB) gin.HandlerFunc {
 
 		var updatedSale Sale
 		err2 := db.Get(&updatedSale,
-			"UPDATE gaea.sale SET open_date=$1, close_date=$2, salescopy=$3 WHERE sale_id=$4 RETURNING *",
+			"UPDATE gaea.sale SET open_date=$1, close_date=$2, title=$3, salescopy=$4 WHERE sale_id=$5 RETURNING *",
 			update.OpenDate,
 			update.CloseDate,
+			update.Title,
 			update.Salescopy,
 			update.SaleId)
 		if err2 != nil {
@@ -144,11 +146,12 @@ func CreateSale(db *sqlx.DB) gin.HandlerFunc {
 		}
 		var retSale Sale
 		dbErr := db.Get(&retSale,
-			"INSERT INTO gaea.sale (sale_id, sale_type, open_date, close_date, status, salescopy) VALUES (DEFAULT, $1, $2, $3, $4, $5) RETURNING *",
+			"INSERT INTO gaea.sale (sale_id, sale_type, open_date, close_date, status, title, salescopy) VALUES (DEFAULT, $1, $2, $3, $4, $5, $6) RETURNING *",
 			newSale.SaleType,
 			newSale.OpenDate,
 			newSale.CloseDate,
 			"open",
+			newSale.Title,
 			newSale.Salescopy)
 		if dbErr != nil {
 			fmt.Println(dbErr)

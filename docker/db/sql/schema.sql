@@ -24,6 +24,7 @@ CREATE TABLE gaea.sale (
     open_date timestamp NOT NULL,
     close_date timestamp NOT NULL,
     status text NOT NULL,
+    title text NOT NULL,
     salescopy text NOT NULL,
     require_final boolean NOT NULL
 );

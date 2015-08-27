@@ -7,7 +7,7 @@ Hello {{.first_name}},
 
 To reset your Guangzhou American Employees Association website password, copy and paste the following link into your browser:
 
-{{.link}}
+https://guangzhouaea.org/reset/{{.link}}
 
 If you didn't request a password reset, please contact us at help@guangzhouaea.org.
 
@@ -15,7 +15,11 @@ Sincerely,
 Guangzhou AEA Board Members
 `
 
-func PasswordResetEmail(data map[string]string) (string, error) {
+func PasswordResetEmail(firstName string, pwdJwt string) (string, error) {
+	data := map[string]string{
+		"first_name": firstName,
+		"jwt":        pwdJwt,
+	}
 	body, err := RenderFromTemplate(data, PasswordResetTemplate)
 	if err != nil {
 		fmt.Println(err)

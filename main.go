@@ -27,8 +27,6 @@ func main() {
 	r.GET("/401", func(c *gin.Context) {
 		c.String(401, "Unauthorized")
 	})
-	
-	
 
 	r.GET("/error", func(c *gin.Context) {
 		c.Set("user", "usertest")
@@ -63,8 +61,9 @@ func main() {
 
 	r.POST("/transaction", routes.CreateTransaction(db))
 
+	r.POST("/reset", routes.RequestResetEmail(db))
+
 	// When developing on c9
 	r.Run(":8080")
-
 
 }

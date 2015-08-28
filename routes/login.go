@@ -14,6 +14,7 @@ import (
 type LoginRequest struct {
 	Email string `json:"user"`
 	Pwd   string `json:"pwd"`
+	Source string `json:"source"`
 }
 
 type LoginResponse struct {
@@ -25,6 +26,12 @@ type LoginResponse struct {
 
 type ResetRequest struct {
 	Email string `json:"user"`
+}
+
+type AccountRequest struct {
+	FirstName string `json:"first_name"`
+	LastName string `json:"last_name"`
+	Email string `json:"email"`
 }
 
 func Login(db *sqlx.DB) gin.HandlerFunc {

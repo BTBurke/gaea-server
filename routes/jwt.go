@@ -99,23 +99,32 @@ func lookupSecret(user string) ([]byte, error) {
 		DB:       0,
 	})
 
-	secret, err := client.Get(strings.Join([]string{"user:", user, ":secret"}, "")).Bytes()
-	if err != nil {
-		switch {
-		case err == redis.Nil:
-			fmt.Printf("New secret for %s", user)
-			b := make([]byte, 32)
-			_, err := rand.Read(b)
-			if err != nil {
-				return nil, err
-			}
-			if err := client.Set(strings.Join([]string{"user:", user, ":secret"}, ""), b, 8*time.Hour).Err(); err != nil {
-				return nil, err
-			}
-			return b, nil
-		default:
+	secKey := strings.Join([]string{"user:", user, ":secret"}, "")
+
+	ttl, _ := client.TTL(secKey).Result()
+	secret, err := client.Get(secKey).Bytes()
+	if err == redis.Nil || ttl < 3*time.Hour {
+		fmt.Printf("New secret for %s", user)
+		b, err := makeRandomKey()
+		if err != nil {
 			return nil, err
 		}
+		if err := client.Set(secKey, b, 8*time.Hour).Err(); err != nil {
+			return nil, err
+		}
+		return b, nil
+	}
+	if err != nil {
+		return nil, err
 	}
 	return secret, nil
+}
+
+func makeRandomKey() ([]byte, error) {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
 }

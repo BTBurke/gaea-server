@@ -38,8 +38,8 @@ func main() {
 	r.POST("/login", routes.Login(db))
 	r.POST("/reset", routes.RequestResetEmail(db))
 
-	auth := r.Group("/", middleware.Auth())
-	admin := r.Group("/", middleware.Auth(), middleware.Admin())
+	auth := r.Group("/", middleware.CORS(), middleware.Auth())
+	admin := r.Group("/", middleware.CORS(), middleware.Auth(), middleware.Admin())
 
 	auth.GET("/user", routes.GetCurrentUser(db))
 

@@ -36,32 +36,35 @@ func main() {
 	})
 
 	r.POST("/login", routes.Login(db))
-	r.GET("/user", routes.GetCurrentUser(db))
-
-	r.GET("/announcement", routes.GetAnnouncements)
-
-	r.GET("/inventory", routes.GetInventory(db))
-	r.POST("/inventory/csv", routes.CreateInventoryFromCSVString(db))
-	r.POST("/inventory", routes.CreateItem(db))
-	r.PUT("/inventory/:invID", routes.UpdateItem(db))
-	r.GET("/inventory/:invID/effects", routes.GetEffects(db))
-
-	r.GET("/sale", routes.GetSales(db))
-	r.POST("/sale", routes.CreateSale(db))
-	r.PUT("/sale/:saleID", routes.UpdateSale(db))
-	r.GET("/sale/:saleID/all", routes.GetAllOrdersForSale(db))
-
-	r.GET("/order", routes.GetOrders(db))
-	r.POST("/order", routes.CreateOrder(db))
-	r.PUT("/order/:orderID", routes.UpdateOrderStatus(db))
-	r.GET("/order/:orderID/item", routes.GetOrderItems(db))
-	r.POST("/order/:orderID/item", routes.AddOrderItem(db))
-	r.DELETE("/order/:orderID/item/:itemID", routes.DeleteOrderItem)
-	r.PUT("/order/:orderID/item/:itemID", routes.UpdateOrderItem(db))
-
-	r.POST("/transaction", routes.CreateTransaction(db))
-
 	r.POST("/reset", routes.RequestResetEmail(db))
+
+	auth := r.Group("/", middleware.Auth())
+	admin := r.Group("/", middleware.Auth(), middleware.Admin())
+
+	auth.GET("/user", routes.GetCurrentUser(db))
+
+	auth.GET("/announcement", routes.GetAnnouncements)
+
+	auth.GET("/inventory", routes.GetInventory(db))
+	admin.POST("/inventory/csv", routes.CreateInventoryFromCSVString(db))
+	admin.POST("/inventory", routes.CreateItem(db))
+	admin.PUT("/inventory/:invID", routes.UpdateItem(db))
+	admin.GET("/inventory/:invID/effects", routes.GetEffects(db))
+
+	auth.GET("/sale", routes.GetSales(db))
+	admin.POST("/sale", routes.CreateSale(db))
+	admin.PUT("/sale/:saleID", routes.UpdateSale(db))
+	admin.GET("/sale/:saleID/all", routes.GetAllOrdersForSale(db))
+
+	auth.GET("/order", routes.GetOrders(db))
+	auth.POST("/order", routes.CreateOrder(db))
+	auth.PUT("/order/:orderID", routes.UpdateOrderStatus(db))
+	auth.GET("/order/:orderID/item", routes.GetOrderItems(db))
+	auth.POST("/order/:orderID/item", routes.AddOrderItem(db))
+	auth.DELETE("/order/:orderID/item/:itemID", routes.DeleteOrderItem)
+	auth.PUT("/order/:orderID/item/:itemID", routes.UpdateOrderItem(db))
+
+	auth.POST("/transaction", routes.CreateTransaction(db))
 
 	r.GET("/testauth", middleware.Auth(), routes.TestAuth)
 	// When developing on c9

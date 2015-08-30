@@ -2,6 +2,7 @@ package routes
 
 import "github.com/gin-gonic/gin"
 import "github.com/BTBurke/gaea-server/errors"
+
 import "encoding/csv"
 import "time"
 import "strings"
@@ -103,6 +104,7 @@ func inventoryFromCSV(csvString string, saleId int, hasHeader bool) ([]Inventory
 
 func CreateInventoryFromCSVString(db *sqlx.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+
 		var inv csvInventory
 
 		err := c.Bind(&inv)
@@ -186,6 +188,7 @@ func GetInventory(db *sqlx.DB) gin.HandlerFunc {
 func CreateItem(db *sqlx.DB) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
+
 		var inv Inventory
 
 		err := c.Bind(&inv)
@@ -222,6 +225,7 @@ func CreateItem(db *sqlx.DB) gin.HandlerFunc {
 func UpdateItem(db *sqlx.DB) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
+
 		var chg updateInventory
 
 		err := c.Bind(&chg)
@@ -254,6 +258,7 @@ func UpdateItem(db *sqlx.DB) gin.HandlerFunc {
 
 func GetEffects(db *sqlx.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+
 		inventoryIDAsString := c.Param("invID")
 		inventoryID, err := strconv.Atoi(inventoryIDAsString)
 		if err != nil {

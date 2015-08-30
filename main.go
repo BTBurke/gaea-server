@@ -41,7 +41,11 @@ func main() {
 	auth := r.Group("/", middleware.CORS(), middleware.Auth())
 	admin := r.Group("/", middleware.CORS(), middleware.Auth(), middleware.Admin())
 
+	auth.POST("/set", routes.SetPassword(db))
+
 	auth.GET("/user", routes.GetCurrentUser(db))
+	admin.GET("/users", routes.GetAllUsers(db))
+	admin.POST("/users", routes.AddUser(db))
 
 	auth.GET("/announcement", routes.GetAnnouncements)
 

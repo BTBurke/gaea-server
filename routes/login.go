@@ -31,6 +31,10 @@ type ResetRequest struct {
 	Email string `json:"user"`
 }
 
+type SetRequest struct {
+	Pwd string `json:"pwd"`
+}
+
 type AccountRequest struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
@@ -135,4 +139,51 @@ func TestAuth(c *gin.Context) {
 	oldjwt, _ := c.Get("jwt")
 
 	c.JSON(200, gin.H{"user": user, "role": role, "iss": iss, "exp": exp, "oldjwt": oldjwt})
+}
+
+func SetPassword(db *sqlx.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if ok := auth.MustRole(c, "pwd"); !ok {
+			c.AbortWithStatus(401)
+			return
+		}
+
+		var req SetRequest
+		if err := c.Bind(&req); err != nil {
+			c.AbortWithStatus(401)
+			return
+		}
+
+		hashPwd, err := scrypt.GenerateFromPassword([]byte(req.Pwd), scrypt.DefaultParams)
+		if err != nil {
+			c.AbortWithStatus(401)
+			return
+		}
+
+		username, exists := c.Get("user")
+		if !exists {
+			c.AbortWithStatus(401)
+			return
+		}
+
+		var user1 User
+		if err := db.Get(&user1, "UPDATE gaea.user SET password=$1 WHERE user_name=$2 RETURNING *", hashPwd, username.(string)); err != nil {
+			c.AbortWithStatus(401)
+			return
+		}
+
+		jwtString, err := IssueJWTForUser(user1)
+		if err != nil {
+			fmt.Println(err)
+			c.AbortWithError(503, errors.NewAPIError(503, "failed to issue new JWT", "internal server error", c))
+			return
+		}
+
+		var loginResp LoginResponse
+		loginResp.User = user1.UserName
+		loginResp.JWT = jwtString
+		c.Writer.Header().Set("Authorization", strings.Join([]string{"Bearer", jwtString}, " "))
+		c.JSON(200, loginResp)
+
+	}
 }

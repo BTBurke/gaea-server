@@ -1,6 +1,12 @@
 package routes
 
-import "github.com/gin-gonic/gin"
+import (
+	"database/sql"
+	"strconv"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+)
 import _ "github.com/lib/pq"
 import "github.com/jmoiron/sqlx"
 import "github.com/BTBurke/gaea-server/errors"
@@ -46,7 +52,6 @@ func GetCurrentUser(db *sqlx.DB) gin.HandlerFunc {
 
 func GetAllUsers(db *sqlx.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// TODO: Add check for role admin or higher
 
 		var users = []User{}
 
@@ -59,6 +64,75 @@ func GetAllUsers(db *sqlx.DB) gin.HandlerFunc {
 
 		c.JSON(200, gin.H{"qty": len(users), "users": users})
 
+	}
+}
+
+func CreateUser(db *sqlx.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var user1 = User{}
+		if err := c.Bind(&user1); err != nil {
+			fmt.Println(err)
+			c.AbortWithError(422, errors.NewAPIError(422, "failed on creating user", "failed to update user", c))
+			return
+		}
+		username, err := createUserName(user1, db, 0)
+		if err != nil {
+			fmt.Println(err)
+			c.AbortWithError(422, errors.NewAPIError(422, "failed on creating user", "failed to update user", c))
+			return
+		}
+
+		var retUser User
+		if err := db.Get(&retUser, `INSERT INTO gaea.user
+				(user_name, first_name, last_name,
+					email, role, password, dip_id, passport,
+					section, updated_at, update_token, last_login,
+					member_exp, member_type, stripe_token) VALUES
+					($1, $2, $3,
+					$4, $5, $6, $7, $8,
+					$9, $10, $11, $12,
+					$13, $14, $15) RETURNING *`,
+			username, user1.FirstName, user1.LastName,
+			user1.Email, user1.Role, "", user1.DipID, user1.Passport,
+			user1.Section, time.Now(), "", user1.LastLogin,
+			user1.MemberExp, user1.MemberType, ""); err != nil {
+			fmt.Println(err)
+			c.AbortWithError(503, errors.NewAPIError(422, "failed on inserting user", "failed to update user", c))
+			return
+		}
+
+		c.JSON(200, retUser)
+
+	}
+}
+
+// Recursive function to find a username starting with LastName+First Letter then adding
+// numbers until you get a unique name (e.g. burkeb, burkeb1, burkeb2)
+func createUserName(user1 User, db *sqlx.DB, inc int) (string, error) {
+	var rUser User
+
+	firstLetter := strings.Split(user1.FirstName, "")[0]
+	switch {
+	case inc == 0:
+		tryName := strings.ToLower(strings.Join([]string{user1.LastName, firstLetter}, ""))
+		err := db.Get(&rUser, "SELECT * FROM gaea.user WHERE user_name=$1", tryName)
+		if err == sql.ErrNoRows {
+			return tryName, nil
+		}
+		if err != nil {
+			return "", err
+		}
+		return createUserName(user1, db, inc+1)
+	default:
+		tryName := strings.ToLower(strings.Join([]string{user1.LastName, firstLetter, strconv.Itoa(inc)}, ""))
+		err := db.Get(&rUser, "SELECT * FROM gaea.user WHERE user_name=$1", tryName)
+		if err == sql.ErrNoRows {
+			return tryName, nil
+		}
+		if err != nil {
+			return "", err
+		}
+		return createUserName(user1, db, inc+1)
 	}
 }
 

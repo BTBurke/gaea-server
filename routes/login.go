@@ -2,7 +2,10 @@ package routes
 
 import (
 	"database/sql"
+	"fmt"
+	"strings"
 
+	"github.com/BTBurke/gaea-server/auth"
 	"github.com/BTBurke/gaea-server/email"
 	"github.com/BTBurke/gaea-server/errors"
 	"github.com/BTBurke/gaea-server/log"
@@ -12,8 +15,8 @@ import (
 )
 
 type LoginRequest struct {
-	Email string `json:"user"`
-	Pwd   string `json:"pwd"`
+	Email  string `json:"user"`
+	Pwd    string `json:"pwd"`
 	Source string `json:"source"`
 }
 
@@ -30,8 +33,8 @@ type ResetRequest struct {
 
 type AccountRequest struct {
 	FirstName string `json:"first_name"`
-	LastName string `json:"last_name"`
-	Email string `json:"email"`
+	LastName  string `json:"last_name"`
+	Email     string `json:"email"`
 }
 
 func Login(db *sqlx.DB) gin.HandlerFunc {
@@ -65,6 +68,7 @@ func Login(db *sqlx.DB) gin.HandlerFunc {
 
 		jwtString, err := IssueJWTForUser(user1)
 		if err != nil {
+			fmt.Println(err)
 			c.AbortWithError(503, errors.NewAPIError(503, "failed to issue new JWT", "internal server error", c))
 			return
 		}
@@ -72,6 +76,7 @@ func Login(db *sqlx.DB) gin.HandlerFunc {
 		var loginResp LoginResponse
 		loginResp.User = user1.UserName
 		loginResp.JWT = jwtString
+		c.Writer.Header().Set("Authorization", strings.Join([]string{"Bearer", jwtString}, " "))
 		c.JSON(200, loginResp)
 	}
 }
@@ -95,7 +100,7 @@ func RequestResetEmail(db *sqlx.DB) gin.HandlerFunc {
 				c.JSON(200, gin.H{"status": "ok"})
 				return
 			default:
-				log.Error("msg=database error reseting password email=%s err=%s", reset.Email, dbErr)
+				log.Error("msg=database error reseting password email=%s err=%s", reset.Email, dbErr.Error())
 				c.JSON(200, gin.H{"status": "ok"})
 				return
 			}
@@ -116,4 +121,18 @@ func RequestResetEmail(db *sqlx.DB) gin.HandlerFunc {
 		go email.Send("GAEA Accounts <help@guangzhouaea.org>", "GAEA Password Reset", body, user.Email)
 		c.JSON(200, gin.H{"status": "ok"})
 	}
+}
+
+func TestAuth(c *gin.Context) {
+	if ok := auth.MustUser(c, "yomama"); !ok {
+		c.AbortWithStatus(401)
+		return
+	}
+	user, _ := c.Get("user")
+	role, _ := c.Get("role")
+	iss, _ := c.Get("iss")
+	exp, _ := c.Get("exp")
+	oldjwt, _ := c.Get("jwt")
+
+	c.JSON(200, gin.H{"user": user, "role": role, "iss": iss, "exp": exp, "oldjwt": oldjwt})
 }

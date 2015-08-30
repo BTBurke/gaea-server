@@ -63,6 +63,7 @@ func main() {
 
 	r.POST("/reset", routes.RequestResetEmail(db))
 
+	r.GET("/testauth", middleware.Auth(), routes.TestAuth)
 	// When developing on c9
 	r.Run(":8080")
 

@@ -99,7 +99,7 @@ func lookupSecret(user string) ([]byte, error) {
 		DB:       0,
 	})
 
-	secret, err := client.Get(strings.Join([]string{"user:", user, ":secret"}, "")).Result()
+	secret, err := client.Get(strings.Join([]string{"user:", user, ":secret"}, "")).Bytes()
 	if err != nil {
 		switch {
 		case err == redis.Nil:
@@ -117,5 +117,5 @@ func lookupSecret(user string) ([]byte, error) {
 			return nil, err
 		}
 	}
-	return []byte(secret), nil
+	return secret, nil
 }

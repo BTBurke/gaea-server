@@ -30,3 +30,15 @@ func MustAdmin(c *gin.Context) bool {
 		return false
 	}
 }
+
+func MustRole(c *gin.Context, role string) bool {
+	roleFromJwt, exists := c.Get("role")
+	if !exists {
+		return false
+	}
+	if roleFromJwt.(string) == role {
+		return true
+	} else {
+		return false
+	}
+}

@@ -7,3 +7,7 @@ gaeadb:
     - sql/:/sql
   environment:
     - POSTGRES_USER=postgres
+redis:
+  image: redis
+  ports:
+    - "6379:6379"

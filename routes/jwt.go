@@ -3,10 +3,11 @@ package routes
 import (
 	"crypto/rand"
 	"fmt"
-	"os"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"gopkg.in/redis.v3"
 )
 
 const TOKEN_EXPIRE_HRS = 3
@@ -92,21 +93,29 @@ func ValidateJWT(inToken string) (*jwt.Token, error) {
 
 func lookupSecret(user string) ([]byte, error) {
 
-	secret := os.Getenv("JWT_SECRET")
-	if len(secret) == 0 {
-		b := make([]byte, 32)
-		_, err := rand.Read(b)
-		if err != nil {
+	client := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	})
+
+	secret, err := client.Get(strings.Join([]string{"user:", user, ":secret"}, "")).Result()
+	if err != nil {
+		switch {
+		case err == redis.Nil:
+			fmt.Printf("New secret for %s", user)
+			b := make([]byte, 32)
+			_, err := rand.Read(b)
+			if err != nil {
+				return nil, err
+			}
+			if err := client.Set(strings.Join([]string{"user:", user, ":secret"}, ""), b, 8*time.Hour).Err(); err != nil {
+				return nil, err
+			}
+			return b, nil
+		default:
 			return nil, err
 		}
-		fmt.Printf("Generated new secret for %s: %s", user, b)
-		sErr := os.Setenv("JWT_SECRET", string(b))
-		if sErr != nil {
-			return nil, sErr
-		}
-		return b, nil
-	} else {
-		return []byte(secret), nil
 	}
-
+	return []byte(secret), nil
 }

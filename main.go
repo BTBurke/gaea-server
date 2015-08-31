@@ -1,5 +1,8 @@
 package main
 
+import "os"
+import "fmt"
+
 import "github.com/gin-gonic/gin"
 import "github.com/BTBurke/gaea-server/routes"
 import "github.com/BTBurke/gaea-server/middleware"
@@ -10,12 +13,33 @@ import "github.com/jmoiron/sqlx"
 
 import "log"
 
+func init() {
+	reqdEnv := []string{"LE_TOKEN", "MAILGUN_API_KEY", "POSTGRES_USER", "POSTGRES_PASSWORD"}
+	
+	var envValue string
+	var exit bool
+	for _, envKey := range reqdEnv {
+		envValue = os.Getenv(envKey)
+		if len(envValue) == 0 {
+			fmt.Printf("Warning: %s not set\n", envKey) 
+			exit = true
+		}
+	}
+	if exit {
+		os.Exit(1)
+	}
+}
+
 func main() {
 	r := gin.Default()
 	r.Use(middleware.CORS())
 
 	// Connect to database
-	db, err := sqlx.Connect("postgres", "user=postgres password=postgres dbname=db_gaea sslmode=disable")
+	pgUser := os.Getenv("POSTGRES_USER")
+	pgPassword := os.Getenv("POSTGRES_PASSWORD")
+	pgConnectString := fmt.Sprintf("user=%s password=%s dbname=db_gaea sslmode=disable", pgUser, pgPassword)
+	
+	db, err := sqlx.Connect("postgres", pgConnectString)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -41,11 +65,11 @@ func main() {
 	auth := r.Group("/", middleware.CORS(), middleware.Auth())
 	admin := r.Group("/", middleware.CORS(), middleware.Auth(), middleware.Admin())
 
-	auth.POST("/set", routes.SetPassword(db))
+	r.POST("/set", routes.SetPassword(db))
 
 	auth.GET("/user", routes.GetCurrentUser(db))
 	admin.GET("/users", routes.GetAllUsers(db))
-	admin.POST("/users", routes.AddUser(db))
+	admin.POST("/users", routes.CreateUser(db))
 
 	auth.GET("/announcement", routes.GetAnnouncements)
 

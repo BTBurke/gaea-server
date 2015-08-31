@@ -42,6 +42,7 @@ func sendArbLogLine(line string) {
 		if err != nil {
 			fmt.Printf("Error connecting to logentries. Msg: %s", err)
 		} else {
+			fmt.Println(line)
 			le.Printf(line)
 		}
 	}

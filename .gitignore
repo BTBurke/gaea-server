@@ -1,2 +1,3 @@
 docker/db/data
 setenv.sh
+env.sh

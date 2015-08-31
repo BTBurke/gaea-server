@@ -15,7 +15,7 @@ func Send(from string, subj string, body string, to ...string) {
 		fmt.Println("Warning: No Mailgun API keys set.  No emails will be sent.")
 		return
 	}
-	mailgun := mg.NewMailgun("mg.guangzhouaea.org", mgApiKey, "")
+	mailgun := mg.NewMailgun("guangzhouaea.org", mgApiKey, "")
 	email := mailgun.NewMessage(from, subj, body, to...)
 	_, _, err := mailgun.Send(email)
 	if err != nil {

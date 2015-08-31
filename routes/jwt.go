@@ -76,6 +76,10 @@ func RenewJWTfromJWT(inToken string) (string, error) {
 }
 
 func ValidateJWT(inToken string) (*jwt.Token, error) {
+	
+	if len(inToken) == 0 {
+		return nil, fmt.Errorf("Token length is zero")
+	}
 
 	token, err := jwt.Parse(inToken, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {

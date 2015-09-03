@@ -10,6 +10,7 @@ import (
 import _ "github.com/lib/pq"
 import "github.com/jmoiron/sqlx"
 import "github.com/BTBurke/gaea-server/errors"
+import "github.com/BTBurke/gaea-server/email"
 import "github.com/guregu/null/zero"
 import "fmt"
 import "time"
@@ -97,9 +98,23 @@ func CreateUser(db *sqlx.DB) gin.HandlerFunc {
 			user1.Section, time.Now(), "", user1.LastLogin,
 			user1.MemberExp, user1.MemberType, ""); err != nil {
 			fmt.Println(err)
-			c.AbortWithError(503, errors.NewAPIError(422, "failed on inserting user", "failed to update user", c))
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on inserting user", "failed to update user", c))
 			return
 		}
+		
+		pwdJwt, err := IssuePwdJWTForUser(retUser)
+		if err != nil {
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on created pwd jwt for new user", "failed to create user", c))
+			return
+		}
+		
+		body, err := email.NewAccountPasswordEmail(retUser.FirstName, pwdJwt)
+		if err != nil {
+			c.AbortWithError(503, errors.NewAPIError(503, "failed to create welcome email", "failed to create user", c))
+			return
+		}
+		
+		go email.Send("GAEA Accounts <accounts@guangzhouaea.org>", "Welcome to the GAEA website", body, retUser.Email) 
 
 		c.JSON(200, retUser)
 

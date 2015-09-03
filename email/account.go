@@ -48,7 +48,7 @@ func NewAccountPasswordEmail(firstName string, pwdJwt string) (string, error) {
 		"first_name": firstName,
 		"jwt":        pwdJwt,
 	}
-	body, err := RenderFromTemplate(data, PasswordResetTemplate)
+	body, err := RenderFromTemplate(data, NewAccountPasswordTemplate)
 	if err != nil {
 		fmt.Println(err)
 		return "", err

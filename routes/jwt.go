@@ -10,7 +10,7 @@ import (
 	"gopkg.in/redis.v3"
 )
 
-const TOKEN_EXPIRE_HRS = 3
+const TOKEN_EXPIRE_HRS = 24
 
 func IssueJWTForUser(user User) (string, error) {
 

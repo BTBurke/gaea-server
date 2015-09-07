@@ -1,7 +1,11 @@
 package routes
 
 import "github.com/gin-gonic/gin"
-import "github.com/BTBurke/gaea-server/errors"
+import (
+	"github.com/BTBurke/gaea-server/email"
+	"github.com/BTBurke/gaea-server/errors"
+	"github.com/BTBurke/gaea-server/log"
+)
 
 import "encoding/csv"
 import "time"
@@ -252,8 +256,37 @@ func UpdateItem(db *sqlx.DB) gin.HandlerFunc {
 			return
 		}
 		saleId := strconv.Itoa(inv.SaleID)
+
+		chgFields := convertChangeFieldsToMap(chg.ChangeFields)
+		if chgFields["in_stock"] {
+
+			users, err := findAffectedUsers(invResult.InventoryID, db)
+			if err != nil {
+				log.Error("msg=failed to find affected users for inventory change inv_id=%s", invResult.InventoryID)
+			}
+
+			for _, user := range users {
+				body, err := email.InventoryOutOfStock(user.FirstName, invResult.Name)
+				if err != nil {
+					log.Error("msg=sending email on inventory out of stock failed user=%s item=%s", user.Email, invResult.InventoryID)
+				}
+				go email.Send("GAEA Order <orders@guangzhouaea.org>", "An item you ordered is out of stock", body, user.Email)
+			}
+		}
+
 		c.JSON(200, gin.H{"inventory": inv, "query": "sale-" + saleId})
 	}
+}
+
+func convertChangeFieldsToMap(fields []string) map[string]bool {
+	if len(fields) == 0 {
+		return nil
+	}
+	var out map[string]bool
+	for _, field := range fields {
+		out[field] = true
+	}
+	return out
 }
 
 func GetEffects(db *sqlx.DB) gin.HandlerFunc {

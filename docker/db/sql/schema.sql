@@ -85,6 +85,15 @@ CREATE TABLE gaea.transaction (
     authorized_by2 text REFERENCES gaea.user (user_name)
 );
 
+CREATE TABLE gaea.announcement (
+  announcement_id serial PRIMARY KEY,
+  title text NOT NULL,
+  markdown text NOT NULL,
+  show_at timestamp NOT NULL,
+  show_until timestamp NOT NULL,
+  updated_at timestamp NOT NULL
+);
+
 INSERT INTO gaea.user (
     user_name,
     first_name,

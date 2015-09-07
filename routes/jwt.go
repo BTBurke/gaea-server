@@ -3,6 +3,7 @@ package routes
 import (
 	"crypto/rand"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -76,7 +77,7 @@ func RenewJWTfromJWT(inToken string) (string, error) {
 }
 
 func ValidateJWT(inToken string) (*jwt.Token, error) {
-	
+
 	if len(inToken) == 0 {
 		return nil, fmt.Errorf("Token length is zero")
 	}
@@ -96,9 +97,14 @@ func ValidateJWT(inToken string) (*jwt.Token, error) {
 }
 
 func lookupSecret(user string) ([]byte, error) {
+	addr := os.Getenv("REDIS_PORT_6379_TCP_ADDR")
+	if len(addr) == 0 {
+		addr = "127.0.0.1"
+	}
+	fullAddr := strings.Join([]string{addr, "6379"}, ":")
 
 	client := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
+		Addr:     fullAddr,
 		Password: "",
 		DB:       0,
 	})

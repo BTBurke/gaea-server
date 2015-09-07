@@ -39,7 +39,12 @@ func main() {
 	// Connect to database
 	pgUser := os.Getenv("POSTGRES_USER")
 	pgPassword := os.Getenv("POSTGRES_PASSWORD")
-	pgConnectString := fmt.Sprintf("user=%s password=%s dbname=db_gaea sslmode=disable", pgUser, pgPassword)
+	pgHost := os.Getenv("DB_PORT_5432_TCP_ADDR")
+	if len(pgHost) == 0 {
+		pgHost = "127.0.0.1"
+	}
+	fmt.Printf("INFO: Using %s as postgres host connection\n", pgHost)
+	pgConnectString := fmt.Sprintf("host=%s user=%s password=%s dbname=db_gaea sslmode=disable", pgHost, pgUser, pgPassword)
 
 	db, err := sqlx.Connect("postgres", pgConnectString)
 	if err != nil {

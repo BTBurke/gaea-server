@@ -1,5 +1,7 @@
 package main
 
+// Release: v0.1.0
+
 import "os"
 import "fmt"
 

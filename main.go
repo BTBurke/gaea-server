@@ -1,5 +1,7 @@
 package main
 
+// Release: v0.1.0
+
 import "os"
 import "fmt"
 
@@ -15,13 +17,13 @@ import "log"
 
 func init() {
 	reqdEnv := []string{"LE_TOKEN", "MAILGUN_API_KEY", "POSTGRES_USER", "POSTGRES_PASSWORD"}
-	
+
 	var envValue string
 	var exit bool
 	for _, envKey := range reqdEnv {
 		envValue = os.Getenv(envKey)
 		if len(envValue) == 0 {
-			fmt.Printf("Warning: %s not set\n", envKey) 
+			fmt.Printf("Warning: %s not set\n", envKey)
 			exit = true
 		}
 	}
@@ -38,7 +40,7 @@ func main() {
 	pgUser := os.Getenv("POSTGRES_USER")
 	pgPassword := os.Getenv("POSTGRES_PASSWORD")
 	pgConnectString := fmt.Sprintf("user=%s password=%s dbname=db_gaea sslmode=disable", pgUser, pgPassword)
-	
+
 	db, err := sqlx.Connect("postgres", pgConnectString)
 	if err != nil {
 		log.Fatal(err)
@@ -71,8 +73,6 @@ func main() {
 	admin.GET("/users", routes.GetAllUsers(db))
 	admin.POST("/users", routes.CreateUser(db))
 
-	auth.GET("/announcement", routes.GetAnnouncements)
-
 	auth.GET("/inventory", routes.GetInventory(db))
 	admin.POST("/inventory/csv", routes.CreateInventoryFromCSVString(db))
 	admin.POST("/inventory", routes.CreateItem(db))
@@ -93,6 +93,11 @@ func main() {
 	auth.PUT("/order/:orderID/item/:itemID", routes.UpdateOrderItem(db))
 
 	auth.POST("/transaction", routes.CreateTransaction(db))
+
+	auth.GET("/announcement", routes.GetAnnouncements(db))
+	admin.POST("/announcement", routes.CreateAnnouncement(db))
+	admin.PUT("/announcement/:announcementID", routes.UpdateAnnouncement(db))
+	admin.DELETE("/announcement/:announcementID", routes.DeleteAnnouncement(db))
 
 	r.GET("/testauth", middleware.Auth(), routes.TestAuth)
 	// When developing on c9

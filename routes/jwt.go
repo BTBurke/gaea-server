@@ -97,11 +97,11 @@ func ValidateJWT(inToken string) (*jwt.Token, error) {
 }
 
 func lookupSecret(user string) ([]byte, error) {
-	addr := os.Getenv("REDIS_PORT_6379_TCP_ADDR")
+	addr := os.Getenv("JWT_PORT_6379_TCP_ADDR")
 	if len(addr) == 0 {
 		addr = "127.0.0.1"
 	}
-	fullAddr := strings.Join([]string{"redis", "6379"}, ":")
+	fullAddr := strings.Join([]string{addr, "6379"}, ":")
 	fmt.Printf("Using redis connection: %s\n", fullAddr)
 	
 	client := redis.NewClient(&redis.Options{
@@ -115,7 +115,7 @@ func lookupSecret(user string) ([]byte, error) {
 	ttl, _ := client.TTL(secKey).Result()
 	secret, err := client.Get(secKey).Bytes()
 	if err == redis.Nil || ttl < 3*time.Hour {
-		fmt.Printf("New secret for %s", user)
+		fmt.Printf("New secret for %s\n", user)
 		b, err := makeRandomKey()
 		if err != nil {
 			return nil, err

@@ -102,7 +102,8 @@ func lookupSecret(user string) ([]byte, error) {
 		addr = "127.0.0.1"
 	}
 	fullAddr := strings.Join([]string{addr, "6379"}, ":")
-
+	fmt.Printf("User redis connection: %s", fullAddr)
+	
 	client := redis.NewClient(&redis.Options{
 		Addr:     fullAddr,
 		Password: "",

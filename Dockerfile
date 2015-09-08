@@ -9,4 +9,4 @@ COPY ./gaea-server /usr/local/bin/gaea-server
 COPY ./entrypoint.sh /entrypoint.sh
 ENV GIN_MODE release
 
-ENTRYPOINT  ["/entrypoint.sh"]
+ENTRYPOINT  ["/usr/local/bin/gaea-server"]

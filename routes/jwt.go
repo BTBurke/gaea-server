@@ -137,6 +137,7 @@ func lookupSecret(user string) ([]byte, error) {
 		log.Fatal("Must set bolt DB location in environment BOLT_DB")
 	}
 	db, err := bolt.Open(boltDB, 0600, &bolt.Options{Timeout: 2 * time.Second})
+	defer db.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -150,6 +151,7 @@ func lookupSecret(user string) ([]byte, error) {
 		value := b.Get([]byte(user))
 		switch {
 		case value == nil:
+			fmt.Printf("Creating new token for %s...\n", user)
 			newSecret, err := makeRandomKey()
 			if err != nil {
 				return err
@@ -160,6 +162,7 @@ func lookupSecret(user string) ([]byte, error) {
 			copy(secret, newSecret)
 			return nil
 		default:
+			fmt.Printf("Token exists for user %s...\n", user)
 			copy(secret, value)
 			return nil
 		}

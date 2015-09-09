@@ -3,8 +3,6 @@ package routes
 import (
 	"crypto/rand"
 	"fmt"
-	"log"
-	"os"
 	"time"
 
 	"github.com/boltdb/bolt"

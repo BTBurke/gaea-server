@@ -34,7 +34,6 @@ type User struct {
 }
 
 func GetCurrentUser(db *sqlx.DB) gin.HandlerFunc {
-	// For testing only
 
 	return func(c *gin.Context) {
 		var user1 = User{}

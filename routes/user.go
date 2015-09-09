@@ -39,7 +39,11 @@ func GetCurrentUser(db *sqlx.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var user1 = User{}
 
-		var userName = "burkebt" // should get this from token
+		userName, exists := c.Get("user")
+		if !exists {
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on getting user from token", "internal server error", c))
+			return
+		}
 
 		err := db.Get(&user1, "SELECT * from gaea.user WHERE user_name=$1", userName)
 		if err != nil {

@@ -136,7 +136,7 @@ func lookupSecret(user string) ([]byte, error) {
 	if len(boltDB) == 0 {
 		log.Fatal("Must set bolt DB location in environment BOLT_DB")
 	}
-	db, err := bolt.Open(boltDB, 0600, &bolt.Options{Timeout: 2 * time.Second})
+	db, err := bolt.Open(boltDB, 0600, &bolt.Options{Timeout: 15 * time.Second})
 	defer db.Close()
 	if err != nil {
 		return nil, err

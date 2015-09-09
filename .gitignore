@@ -2,3 +2,4 @@ docker/db/data
 setenv.sh
 env.sh
 gaea-server
+bolt.db

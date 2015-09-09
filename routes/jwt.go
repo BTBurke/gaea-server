@@ -130,7 +130,7 @@ func ValidateJWT(inToken string) (*jwt.Token, error) {
 // }
 
 func lookupSecret(user string) ([]byte, error) {
-	db, err := bolt.Open("/bolt.db", 0600, &bolt.Options{Timeout: 15 * time.Second})
+	db, err := bolt.Open("bolt.db", 0600, &bolt.Options{Timeout: 15 * time.Second})
 	defer db.Close()
 	if err != nil {
 		return nil, err

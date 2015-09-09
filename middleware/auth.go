@@ -34,8 +34,8 @@ func Auth() gin.HandlerFunc {
 		c.Set("user", token.Claims["user"].(string))
 		c.Set("jwt", jwtString[1])
 		c.Set("role", token.Claims["role"].(string))
-		c.Set("exp", token.Claims["exp"].(string))
-		c.Set("iss", token.Claims["iss"].(string))
+		c.Set("exp", token.Claims["exp"])
+		c.Set("iss", token.Claims["iss"])
 
 		newJwt, err := routes.RenewJWTfromJWT(jwtString[1])
 		if err != nil {

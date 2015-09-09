@@ -1,7 +1,7 @@
 FROM ubuntu:14.04
 MAINTAINER Bryan Burke <btburke@fastmail.com>
 
-RUN apt-get update && apt-get upgrade
+RUN apt-get update && apt-get -y upgrade
 RUN apt-get install -y ca-certificates
 
 EXPOSE 8080

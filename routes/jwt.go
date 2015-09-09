@@ -3,9 +3,9 @@ package routes
 import (
 	"crypto/rand"
 	"fmt"
+	"os"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/dgrijalva/jwt-go"
 )
 
@@ -129,42 +129,55 @@ func ValidateJWT(inToken string) (*jwt.Token, error) {
 // 	return secret, nil
 // }
 
-func lookupSecret(user string) ([]byte, error) {
-	db, err := bolt.Open("bolt.db", 0600, &bolt.Options{Timeout: 15 * time.Second})
-	defer db.Close()
-	if err != nil {
-		return nil, err
-	}
-	var secret []byte
-	boltErr := db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists([]byte("secret"))
-		if err != nil {
-			return err
-		}
+// func lookupSecret(user string) ([]byte, error) {
+// 	db, err := bolt.Open("./bolt.db", 0600, &bolt.Options{Timeout: 15 * time.Second})
+// 	defer db.Close()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	var secret []byte
+// 	boltErr := db.Update(func(tx *bolt.Tx) error {
+// 		b, err := tx.CreateBucketIfNotExists([]byte("secret"))
+// 		if err != nil {
+// 			return err
+// 		}
+//
+// 		value := b.Get([]byte(user))
+// 		switch {
+// 		case value == nil:
+// 			fmt.Printf("Creating new token for %s...\n", user)
+// 			newSecret, err := makeRandomKey()
+// 			if err != nil {
+// 				return err
+// 			}
+// 			if err := b.Put([]byte(user), newSecret); err != nil {
+// 				return err
+// 			}
+// 			copy(secret, newSecret)
+// 			return nil
+// 		default:
+// 			fmt.Printf("Token exists for user %s...\n", user)
+// 			copy(secret, value)
+// 			return nil
+// 		}
+// 	})
+// 	if boltErr != nil {
+// 		return nil, boltErr
+// 	}
+// 	return secret, nil
+// }
 
-		value := b.Get([]byte(user))
-		switch {
-		case value == nil:
-			fmt.Printf("Creating new token for %s...\n", user)
-			newSecret, err := makeRandomKey()
-			if err != nil {
-				return err
-			}
-			if err := b.Put([]byte(user), newSecret); err != nil {
-				return err
-			}
-			copy(secret, newSecret)
-			return nil
-		default:
-			fmt.Printf("Token exists for user %s...\n", user)
-			copy(secret, value)
-			return nil
+func lookupSecret(user string) ([]byte, error) {
+	secret := os.Getenv("secret")
+	if len(secret) == 0 {
+		b, err := makeRandomKey()
+		if err != nil {
+			return nil, err
 		}
-	})
-	if boltErr != nil {
-		return nil, boltErr
+		os.Setenv("secret", string(b))
+		return b, nil
 	}
-	return secret, nil
+	return []byte(secret), nil
 }
 
 func makeRandomKey() ([]byte, error) {

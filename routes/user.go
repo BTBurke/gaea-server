@@ -43,7 +43,7 @@ func GetCurrentUser(db *sqlx.DB) gin.HandlerFunc {
 			c.AbortWithError(503, errors.NewAPIError(503, "failed on getting user from token", "internal server error", c))
 			return
 		}
-
+		fmt.Printf("Getting details for user %s...\n", userName)
 		err := db.Get(&user1, "SELECT * from gaea.user WHERE user_name=$1", userName)
 		if err != nil {
 			fmt.Println(err)

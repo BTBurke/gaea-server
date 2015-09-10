@@ -49,14 +49,12 @@ func GetOrders (db *sqlx.DB) gin.HandlerFunc {
 		var user1 User
 		userName, exists := c.Get("user")
 		if !exists {
-			fmt.Println(err1)
 			c.AbortWithError(503, errors.NewAPIError(503, "failed to get user", "internal server error",c))
 			return
 		}
 		
 		dbErr := db.Get(&user1, "SELECT * FROM gaea.user WHERE user_name=$1", userName)
 		if dbErr != nil {
-			fmt.Println(err1)
 			c.AbortWithError(503, errors.NewAPIError(503, "failed to get user", "internal server error",c))
 			return
 		}
@@ -82,7 +80,7 @@ func GetOrders (db *sqlx.DB) gin.HandlerFunc {
 		}
 		if qtyOrd > 0 {
 			err2 := db.Select(&ords, `SELECT * FROM gaea.order WHERE user_name=$1`,
-				uName)
+				userName)
 			if err2 != nil {
 				fmt.Println(err2)
 				c.AbortWithError(503, errors.NewAPIError(503, "failed to get orders", "internal server error",c))

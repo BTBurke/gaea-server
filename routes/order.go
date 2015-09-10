@@ -47,7 +47,7 @@ func GetOrders (db *sqlx.DB) gin.HandlerFunc {
 	return func (c *gin.Context) {
 	
 		var user1 User
-		userName, exists = c.Get("user")
+		userName, exists := c.Get("user")
 		if !exists {
 			fmt.Println(err1)
 			c.AbortWithError(503, errors.NewAPIError(503, "failed to get user", "internal server error",c))
@@ -61,8 +61,9 @@ func GetOrders (db *sqlx.DB) gin.HandlerFunc {
 			return
 		}
 		
+		var memberStatus bool
 		switch {
-		case user1.role == "nonmember":
+		case user1.Role == "nonmember":
 			memberStatus = false
 		default:
 			memberStatus = true

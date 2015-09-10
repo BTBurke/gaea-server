@@ -46,16 +46,34 @@ func GetOrders (db *sqlx.DB) gin.HandlerFunc {
 
 	return func (c *gin.Context) {
 	
-		//for testing until JWT implemented
-		uName := "burkebt"
-		memberStatus := true
+		var user1 User
+		userName, exists = c.Get("user")
+		if !exists {
+			fmt.Println(err1)
+			c.AbortWithError(503, errors.NewAPIError(503, "failed to get user", "internal server error",c))
+			return
+		}
+		
+		dbErr := db.Get(&user1, "SELECT * FROM gaea.user WHERE user_name=$1", userName)
+		if dbErr != nil {
+			fmt.Println(err1)
+			c.AbortWithError(503, errors.NewAPIError(503, "failed to get user", "internal server error",c))
+			return
+		}
+		
+		switch {
+		case user1.role == "nonmember":
+			memberStatus = false
+		default:
+			memberStatus = true
+		}
 		
 		var ords []Order
 		var retOrds []Order
 		var qtyOrd int
 		
 		err1 := db.Get(&qtyOrd, `SELECT COUNT(*) FROM gaea.order WHERE user_name=$1`,
-			uName)
+			userName)
 		if err1 != nil {
 			fmt.Println(err1)
 			c.AbortWithError(503, errors.NewAPIError(503, "failed to get orders", "internal server error",c))

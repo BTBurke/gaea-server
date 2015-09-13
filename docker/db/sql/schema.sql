@@ -44,7 +44,11 @@ CREATE TABLE gaea.inventory (
     types text NOT NULL,
     origin text,
     in_stock boolean,
-    changelog text
+    changelog text,
+    use_case_pricing boolean,
+    case_size integer,
+    split_case_penalty_per_item_pct integer,
+    currency varchar(3)
 );
 
 

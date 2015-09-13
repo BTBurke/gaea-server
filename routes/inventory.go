@@ -1,10 +1,16 @@
 package routes
 
-import "github.com/gin-gonic/gin"
+import (
+	err "errors"
+	"os"
+
+	"github.com/gin-gonic/gin"
+)
 import (
 	"github.com/BTBurke/gaea-server/email"
 	"github.com/BTBurke/gaea-server/errors"
 	"github.com/BTBurke/gaea-server/log"
+	oxr "github.com/jagregory/gopenexchangerates"
 )
 
 import "encoding/csv"
@@ -38,6 +44,7 @@ type Inventory struct {
 	UseCasePricing             bool            `json:"use_case_pricing" db:"use_case_pricing"`
 	CaseSize                   int             `json:"case_size" db:"case_size"`
 	SplitCasePenaltyPerItemPct int             `json:"split_case_penalty_per_item_pct" db:"split_case_penalty_per_item_pct"`
+	Currency                   string          `json:"currency" db:"currency"`
 }
 
 type csvInventory struct {
@@ -54,14 +61,14 @@ type updateInventory struct {
 
 // loadInventoryFromCSV loads the inventory from a local or uploaded
 // CSV file.  Expects CSV in the following format for columns:
-// {id, name, desc, abv, size, year, nonmember, member, type, origin}
+// {id, name, desc, abv, size, year, nonmember, member, type, origin, use_case_pricing, case_size, split_case_penalty_per_item_pct, currency}
 func inventoryFromCSV(csvString string, saleId int, hasHeader bool) ([]Inventory, error) {
 
 	var out []Inventory
 
 	reader := csv.NewReader(strings.NewReader(csvString))
 
-	reader.FieldsPerRecord = 10
+	reader.FieldsPerRecord = 14
 
 	rawCSVdata, err := reader.ReadAll()
 	if err != nil {
@@ -85,6 +92,21 @@ func inventoryFromCSV(csvString string, saleId int, hasHeader bool) ([]Inventory
 			return out, err
 		}
 
+		casePricing, err := strconv.ParseBool(rec[10])
+		if err != nil {
+			return out, err
+		}
+
+		caseSize, err := strconv.Atoi(rec[11])
+		if err != nil {
+			return out, err
+		}
+
+		splitCasePenalty, err := strconv.Atoi(rec[12])
+		if err != nil {
+			return out, err
+		}
+
 		var t Inventory
 		t.SaleID = saleId
 		t.UpdatedAt = time.Now()
@@ -99,6 +121,10 @@ func inventoryFromCSV(csvString string, saleId int, hasHeader bool) ([]Inventory
 		t.MemPrice = memPrice
 		t.Types = zero.StringFrom(rec[8])
 		t.Origin = zero.StringFrom(rec[9])
+		t.UseCasePricing = casePricing
+		t.CaseSize = caseSize
+		t.SplitCasePenaltyPerItemPct = splitCasePenalty
+		t.Currency = rec[13]
 		t.InStock = true
 
 		out = append(out, t)
@@ -333,4 +359,44 @@ func findAffectedUsers(inventoryID int, db *sqlx.DB) ([]User, error) {
 		users = append(users, user1)
 	}
 	return users, nil
+}
+
+// convertInventoryToCurrency returns a new list of inventory with the currency converted from a current currency
+// to a different currency using the OpenExchangeRates.org data
+func convertInventoryToCurrency(inv []Inventory, toCurrency string) ([]Inventory, error) {
+	var returnInventory []Inventory
+
+	oxrKey := os.Getenv("EXCHANGE_RATE_API_KEY")
+	if len(oxrKey) == 0 {
+		return inv, err.New("EXCHANGE_RATE_API_KEY not set")
+	}
+
+	xr := oxr.New(oxrKey)
+	if err := xr.Populate(); err != nil {
+		return inv, err
+	}
+
+	toRate, err := xr.Get(toCurrency)
+	if err != nil {
+		return inv, err
+	}
+
+	var rateError error
+	var rate float64
+	var fromRate float64
+	for _, inv1 := range inv {
+		inv1.Currency = toCurrency
+
+		fromRate, rateError = xr.Get(inv1.Currency)
+		if rateError != nil {
+			return inv, rateError
+		}
+		rate = toRate / fromRate
+
+		inv1.MemPrice = inv1.MemPrice.Mul(decimal.NewFromFloat(rate))
+		inv1.NonmemPrice = inv1.NonmemPrice.Mul(decimal.NewFromFloat(rate))
+		returnInventory = append(returnInventory, inv1)
+	}
+	return returnInventory, nil
+
 }

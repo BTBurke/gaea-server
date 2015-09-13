@@ -94,7 +94,7 @@ func main() {
 	auth.PUT("/order/:orderID", routes.UpdateOrderStatus(db))
 	auth.GET("/order/:orderID/item", routes.GetOrderItems(db))
 	auth.POST("/order/:orderID/item", routes.AddOrderItem(db))
-	auth.DELETE("/order/:orderID/item/:itemID", routes.DeleteOrderItem)
+	auth.DELETE("/order/:orderID/item/:itemID", routes.DeleteOrderItem(db))
 	auth.PUT("/order/:orderID/item/:itemID", routes.UpdateOrderItem(db))
 
 	auth.POST("/transaction", routes.CreateTransaction(db))

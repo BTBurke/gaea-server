@@ -20,21 +20,24 @@ import "database/sql"
 // Inventory represents a single inventory item that is associated with
 // an offered sale.  Changes are recorded in the changelog.
 type Inventory struct {
-	InventoryID int             `json:"inventory_id" db:"inventory_id"`
-	SaleID      int             `json:"sale_id" db:"sale_id"`
-	UpdatedAt   time.Time       `json:"updated_at" db:"updated_at"`
-	SupplierID  string          `json:"supplier_id" db:"supplier_id"`
-	Name        string          `json:"name" db:"name"`
-	Description zero.String     `json:"desc" db:"description"`
-	Abv         zero.String     `json:"abv" db:"abv"`
-	Size        zero.String     `json:"size" db:"size"`
-	Year        zero.String     `json:"year" db:"year"`
-	NonmemPrice decimal.Decimal `json:"nonmem_price" db:"nonmem_price"` // nonmember price in USD (7,2)precision
-	MemPrice    decimal.Decimal `json:"mem_price" db:"mem_price"`       // member price in USD (7,2)precision
-	Types       zero.String     `json:"types" db:"types"`               //String-representation of list, > delimiter
-	Origin      zero.String     `json:"origin" db:"origin"`             //String-representation of list, > delimiter
-	InStock     bool            `json:"in_stock" db:"in_stock"`
-	Changelog   zero.String     `json:"changelog" db:"changelog"` //String-representation of list, > delimiter
+	InventoryID                int             `json:"inventory_id" db:"inventory_id"`
+	SaleID                     int             `json:"sale_id" db:"sale_id"`
+	UpdatedAt                  time.Time       `json:"updated_at" db:"updated_at"`
+	SupplierID                 string          `json:"supplier_id" db:"supplier_id"`
+	Name                       string          `json:"name" db:"name"`
+	Description                zero.String     `json:"desc" db:"description"`
+	Abv                        zero.String     `json:"abv" db:"abv"`
+	Size                       zero.String     `json:"size" db:"size"`
+	Year                       zero.String     `json:"year" db:"year"`
+	NonmemPrice                decimal.Decimal `json:"nonmem_price" db:"nonmem_price"` // nonmember price in USD (7,2)precision
+	MemPrice                   decimal.Decimal `json:"mem_price" db:"mem_price"`       // member price in USD (7,2)precision
+	Types                      zero.String     `json:"types" db:"types"`               //String-representation of list, > delimiter
+	Origin                     zero.String     `json:"origin" db:"origin"`             //String-representation of list, > delimiter
+	InStock                    bool            `json:"in_stock" db:"in_stock"`
+	Changelog                  zero.String     `json:"changelog" db:"changelog"` //String-representation of list, > delimiter
+	UseCasePricing             bool            `json:"use_case_pricing" db:"use_case_pricing"`
+	CaseSize                   int             `json:"case_size" db:"case_size"`
+	SplitCasePenaltyPerItemPct int             `json:"split_case_penalty_per_item_pct" db:"split_case_penalty_per_item_pct"`
 }
 
 type csvInventory struct {

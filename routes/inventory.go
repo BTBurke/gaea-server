@@ -161,13 +161,15 @@ func CreateInventoryFromCSVString(db *sqlx.DB) gin.HandlerFunc {
 			dbErr = db.Get(&invId,
 				`INSERT INTO gaea.inventory
 				(inventory_id, sale_id, updated_at, supplier_id, name, description,
-				abv, size, year, nonmem_price, mem_price, types, origin, in_stock)
+				abv, size, year, nonmem_price, mem_price, types, origin, in_stock,
+				use_case_pricing, case_size, split_case_penalty_per_item_pct, currency)
 				VALUES (DEFAULT, $1, $2, $3, $4, $5,
-				$6, $7, $8, $9, $10, $11, $12, $13) RETURNING inventory_id`,
+				$6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING inventory_id`,
 				inv1.SaleID, inv1.UpdatedAt,
 				inv1.SupplierID, inv1.Name, inv1.Description,
 				inv1.Abv, inv1.Size, inv1.Year, inv1.NonmemPrice, inv1.MemPrice,
-				inv1.Types, inv1.Origin, inv1.InStock)
+				inv1.Types, inv1.Origin, inv1.InStock, inv1.UseCasePricing, inv1.CaseSize,
+				inv1.SplitCasePenaltyPerItemPct, inv1.Currency)
 			if dbErr != nil {
 				fmt.Println(inv1)
 				fmt.Println(dbErr)
@@ -214,7 +216,21 @@ func GetInventory(db *sqlx.DB) gin.HandlerFunc {
 			c.AbortWithError(422, errors.NewAPIError(422, "sale ID does not exist", "sale ID does not exist", c))
 			return
 		}
-		c.JSON(200, gin.H{"inventory": inv, "query": queryName, "qty": len(inv)})
+
+		// passing ?currency=<curency> converts to another currency
+		currency := c.Query("currency")
+		if len(currency) == 0 {
+			c.JSON(200, gin.H{"inventory": inv, "query": queryName, "qty": len(inv)})
+			return
+		}
+
+		invInCurrency, err := convertInventoryToCurrency(inv, currency)
+		if err != nil {
+			c.AbortWithError(422, errors.NewAPIError(503, fmt.Sprintf("msg=failed to convert to other currency err=%s", err), "internal server error", c))
+			return
+		}
+
+		c.JSON(200, gin.H{"inventory": invInCurrency, "query": queryName, "qty": len(inv)})
 	}
 }
 
@@ -235,13 +251,15 @@ func CreateItem(db *sqlx.DB) gin.HandlerFunc {
 		dbErr := db.Get(&invId,
 			`INSERT INTO gaea.inventory
 				(inventory_id, sale_id, updated_at, supplier_id, name, description,
-				abv, size, year, nonmem_price, mem_price, types, origin, in_stock)
+				abv, size, year, nonmem_price, mem_price, types, origin, in_stock,
+			use_case_pricing, case_size, split_case_penalty_per_item_pct, currency)
 				VALUES (DEFAULT, $1, $2, $3, $4, $5,
-				$6, $7, $8, $9, $10, $11, $12, $13) RETURNING inventory_id`,
+				$6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING inventory_id`,
 			inv.SaleID, time.Now(),
 			inv.SupplierID, inv.Name, inv.Description,
 			inv.Abv, inv.Size, inv.Year, inv.NonmemPrice, inv.MemPrice,
-			inv.Types, inv.Origin, inv.InStock)
+			inv.Types, inv.Origin, inv.InStock, inv.UseCasePricing, inv.CaseSize,
+			inv.SplitCasePenaltyPerItemPct, inv.Currency)
 		if dbErr != nil {
 			fmt.Println(inv)
 			fmt.Println(dbErr)
@@ -272,12 +290,14 @@ func UpdateItem(db *sqlx.DB) gin.HandlerFunc {
 		var invResult Inventory
 		dbErr := db.Get(&invResult,
 			`UPDATE gaea.inventory SET sale_id=$1, updated_at=$2, supplier_id=$3, name=$4, description=$5,
-				abv=$6, size=$7, year=$8, nonmem_price=$9, mem_price=$10, types=$11, origin=$12, in_stock=$13, changelog=$14
-				WHERE inventory_id=$15 RETURNING *`,
+				abv=$6, size=$7, year=$8, nonmem_price=$9, mem_price=$10, types=$11, origin=$12, in_stock=$13, changelog=$14,
+				use_case_pricing=$15, case_size=$16, split_case_penalty_per_item_pct=$17, currency=$18
+				WHERE inventory_id=$19 RETURNING *`,
 			inv.SaleID, time.Now(),
 			inv.SupplierID, inv.Name, inv.Description,
 			inv.Abv, inv.Size, inv.Year, inv.NonmemPrice, inv.MemPrice,
-			inv.Types, inv.Origin, inv.InStock, inv.Changelog, inv.InventoryID)
+			inv.Types, inv.Origin, inv.InStock, inv.Changelog,
+			inv.UseCasePricing, inv.CaseSize, inv.SplitCasePenaltyPerItemPct, inv.Currency, inv.InventoryID)
 		if dbErr != nil {
 			fmt.Println(inv)
 			fmt.Println(dbErr)

@@ -32,7 +32,7 @@ type ResetRequest struct {
 }
 
 type SetRequest struct {
-	Pwd string `json:"pwd"`
+	Pwd   string `json:"pwd"`
 	Token string `json:"token"`
 }
 
@@ -144,23 +144,24 @@ func TestAuth(c *gin.Context) {
 
 func SetPassword(db *sqlx.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		
+
 		var req SetRequest
 		if err := c.Bind(&req); err != nil {
 			log.Error("msg=password reset failed dev=could not bind request err=%s", err)
 			c.AbortWithStatus(401)
 			return
 		}
-		
+
 		token, err := ValidateJWT(req.Token)
 		if err != nil {
 			log.Error("msg=password reset failed dev=token not validated err=%s", err)
 			c.AbortWithStatus(401)
 			return
 		}
-		
+
 		username := token.Claims["user"]
-		
+		setToken := token.Claims["jwt"]
+
 		if token.Claims["role"] != "pwd" {
 			log.Error("msg=password reset failed user=%s dev=token role not pwd", username)
 			c.AbortWithStatus(401)
@@ -169,15 +170,26 @@ func SetPassword(db *sqlx.DB) gin.HandlerFunc {
 
 		hashPwd, err := scrypt.GenerateFromPassword([]byte(req.Pwd), scrypt.DefaultParams)
 		if err != nil {
-			log.Error("msg=password reset failed user=%s dev=could not hash pwd err=%s", username, err)
+			log.Error("msg=password reset failed user=%s dev=could not hash pwd err=%s", username.(string), err)
 			c.AbortWithStatus(401)
 			return
 		}
 
-		
+		// prevent replay attack by checking that token not already used to reset password
+		var checkUserToken string
+		if err := db.Get(&checkUserToken, "SELECT update_token FROM gaea.user WHERE user_name=$1", username.(string)); err != nil {
+			log.Error("msg=password reset failed user=%s dev=db insert failed err=%s", username.(string), err)
+			c.AbortWithStatus(401)
+			return
+		}
+		if checkUserToken == setToken.(string) {
+			log.Error("msg=password reset failed user=%s dev=replay attack against token err=%s", username.(string), err)
+			c.AbortWithStatus(401)
+			return
+		}
 
 		var user1 User
-		if err := db.Get(&user1, "UPDATE gaea.user SET password=$1 WHERE user_name=$2 RETURNING *", hashPwd, username.(string)); err != nil {
+		if err := db.Get(&user1, "UPDATE gaea.user SET password=$1, update_token=$2 WHERE user_name=$3 RETURNING *", hashPwd, setToken.(string), username.(string)); err != nil {
 			log.Error("msg=password reset failed user=%s dev=db insert failed err=%s", username, err)
 			c.AbortWithStatus(401)
 			return

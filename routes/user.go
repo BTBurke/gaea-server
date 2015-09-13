@@ -86,6 +86,8 @@ func CreateUser(db *sqlx.DB) gin.HandlerFunc {
 			return
 		}
 
+		user1.Email = strings.ToLower(user1.Email)
+
 		var retUser User
 		if err := db.Get(&retUser, `INSERT INTO gaea.user
 				(user_name, first_name, last_name,

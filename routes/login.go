@@ -52,6 +52,8 @@ func Login(db *sqlx.DB) gin.HandlerFunc {
 			return
 		}
 
+		loginReq.Email = strings.ToLower(loginReq.Email)
+
 		var user1 User
 		dbErr := db.Get(&user1, "SELECT * FROM gaea.user WHERE email=$1", loginReq.Email)
 		if dbErr != nil {

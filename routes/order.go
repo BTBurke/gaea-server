@@ -361,22 +361,47 @@ func CalcOrderTotals(orderID int, member bool, db *sqlx.DB) (int, decimal.Decima
 	var total decimal.Decimal
 	var inv Inventory
 	var totalQty int
-	var decQty decimal.Decimal
+	var price decimal.Decimal
 	for _, item := range oItems {
 		dbErr = db.Get(&inv, "SELECT * FROM gaea.inventory WHERE inventory_id=$1", item.InventoryId)
 		if dbErr != nil {
 			return 0, decimal.NewFromFloat(0), dbErr
 		}
+
 		switch {
 		case member:
-			decQty = decimal.New(int64(item.Qty), 0)
-			total = total.Add(inv.MemPrice.Mul(decQty))
+			price = inv.MemPrice
 		default:
-			decQty = decimal.New(int64(item.Qty), 0)
-			total = total.Add(inv.NonmemPrice.Mul(decQty))
+			price = inv.NonmemPrice
+		}
+
+		switch {
+		case inv.UseCasePricing:
+			total = total.Add(calcSubTotalCasePricing(item.Qty, price, inv.CaseSize, inv.SplitCasePenaltyPerItemPct))
+		default:
+			total = total.Add(calcSubTotal(item.Qty, price))
 		}
 		totalQty = totalQty + item.Qty
 	}
 
 	return totalQty, total, nil
+}
+
+func calcSubTotal(qty int, price decimal.Decimal) decimal.Decimal {
+	decQty := decimal.New(int64(qty), 0)
+	return price.Mul(decQty)
+}
+
+func calcSubTotalCasePricing(qty int, price decimal.Decimal, caseQty int, casePenalty int) decimal.Decimal {
+	qtySubjectToPenalty := qty % caseQty
+	switch {
+	case qtySubjectToPenalty == 0:
+		return calcSubTotal(qty, price)
+	default:
+		subTotalBeforePenalty := calcSubTotal(qty, price)
+		penaltyPct := decimal.NewFromFloat(float64(casePenalty) / 100.0)
+		penaltyTotal := calcSubTotal(qtySubjectToPenalty, price.Mul(penaltyPct))
+		return subTotalBeforePenalty.Add(penaltyTotal)
+	}
+
 }

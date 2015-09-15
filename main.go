@@ -74,6 +74,8 @@ func main() {
 
 	r.POST("/set", routes.SetPassword(db))
 
+	auth.POST("/logout", routes.Logout)
+
 	auth.GET("/user", routes.GetCurrentUser(db))
 	admin.GET("/users", routes.GetAllUsers(db))
 	admin.POST("/users", routes.CreateUser(db))

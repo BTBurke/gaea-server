@@ -86,7 +86,9 @@ func ValidateJWT(inToken string) (*jwt.Token, error) {
 		}
 		return lookupSecret(token.Claims["user"].(string))
 	})
-
+	if err != nil {
+		return nil, err
+	}
 	if token.Valid && err == nil {
 		return token, nil
 	}

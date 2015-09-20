@@ -8,7 +8,6 @@ import "fmt"
 import "github.com/gin-gonic/gin"
 import "github.com/BTBurke/gaea-server/routes"
 import "github.com/BTBurke/gaea-server/middleware"
-import "github.com/BTBurke/gaea-server/errors"
 
 import _ "github.com/lib/pq"
 import "github.com/jmoiron/sqlx"
@@ -55,19 +54,9 @@ func main() {
 		c.String(200, "pong")
 	})
 
-	r.GET("/401", func(c *gin.Context) {
-		c.String(401, "Unauthorized")
-	})
-
-	r.GET("/error", func(c *gin.Context) {
-		c.Set("user", "usertest")
-		c.Set("role", "admin")
-		c.AbortWithError(422, errors.NewAPIError(422, "test error development msg", "test error user message", c))
-		return
-	})
-
 	r.POST("/login", routes.Login(db))
 	r.POST("/reset", routes.RequestResetEmail(db))
+	r.POST("/create", routes.CreateUserExternal(db))
 
 	auth := r.Group("/", middleware.CORS(), middleware.Auth())
 	admin := r.Group("/", middleware.CORS(), middleware.Auth(), middleware.Admin())

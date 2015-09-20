@@ -198,11 +198,10 @@ func GetOrderItems(db *sqlx.DB) gin.HandlerFunc {
 				c.AbortWithError(503, errors.NewAPIError(503, "failed on getting order items", "internal server error", c))
 				return
 			}
-		}
-
-		if ok := auth.MustUser(c, oItems[0].UserName); !ok {
-			c.AbortWithError(401, errors.NewAPIError(401, "tried to get order items for different user", "internal server error", c))
-			return
+			if ok := auth.MustUser(c, oItems[0].UserName); !ok {
+				c.AbortWithError(401, errors.NewAPIError(401, "tried to get order items for different user", "internal server error", c))
+				return
+			}
 		}
 
 		c.JSON(200, gin.H{"qty": count, "order_items": oItems, "query": "order-" + orderID})
@@ -259,18 +258,28 @@ func AddOrderItem(db *sqlx.DB) gin.HandlerFunc {
 func DeleteOrderItem(db *sqlx.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		orderItemID := c.Param("itemID")
+		orderID := c.Param("orderID")
 		if len(orderItemID) == 0 || orderItemID == "undefined" {
 			c.AbortWithError(422, errors.NewAPIError(422, "failed to pass order item ID for deletion", "internal server error", c))
 			return
 		}
-
-		err := db.MustExec("DELETE gaea.orderitem WHERE orderitem_id = $1", orderItemID)
+		var rowsAffected int
+		err := db.Get(&rowsAffected, "DELETE FROM gaea.orderitem WHERE orderitem_id = $1", orderItemID)
 		if err != nil {
-			c.AbortWithError(503, errors.NewAPIError(503, fmt.Sprintf("msg=failed to delete order item err=%s", err), "internal server error", c))
-			return
+			switch {
+			case err == sql.ErrNoRows:
+				c.JSON(200, gin.H{"order_id": orderID, "orderitem_id": orderItemID})
+				return
+			default:
+				c.AbortWithError(503, errors.NewAPIError(503, fmt.Sprintf("msg=failed to delete order item err=%s", err), "internal server error", c))
+				return
+			}
+		}
+		if rowsAffected == 0 {
+			c.JSON(200, gin.H{"order_id": orderID, "orderitem_id": nil})
 		}
 
-		c.JSON(200, gin.H{"order_item_id": orderItemID})
+		c.JSON(200, gin.H{"order_id": orderID, "orderitem_id": orderItemID})
 	}
 }
 

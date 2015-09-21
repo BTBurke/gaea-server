@@ -184,7 +184,7 @@ func SetPassword(db *sqlx.DB) gin.HandlerFunc {
 			c.AbortWithStatus(401)
 			return
 		}
-		if checkUserToken == setToken.(string) {
+		if len(checkUserToken) > 0 && checkUserToken == setToken.(string) {
 			log.Error("msg=password reset failed user=%s dev=replay attack against token err=%s", username.(string), err)
 			c.AbortWithStatus(401)
 			return

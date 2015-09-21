@@ -162,8 +162,7 @@ func SetPassword(db *sqlx.DB) gin.HandlerFunc {
 		}
 
 		username := token.Claims["user"]
-		setToken := token.Claims["jwt"]
-
+		
 		if token.Claims["role"] != "pwd" {
 			log.Error("msg=password reset failed user=%s dev=token role not pwd", username)
 			c.AbortWithStatus(401)
@@ -184,14 +183,14 @@ func SetPassword(db *sqlx.DB) gin.HandlerFunc {
 			c.AbortWithStatus(401)
 			return
 		}
-		if len(checkUserToken) > 0 && checkUserToken == setToken.(string) {
+		if len(checkUserToken) > 0 && checkUserToken == req.Token {
 			log.Error("msg=password reset failed user=%s dev=replay attack against token err=%s", username.(string), err)
 			c.AbortWithStatus(401)
 			return
 		}
 
 		var user1 User
-		if err := db.Get(&user1, "UPDATE gaea.user SET password=$1, update_token=$2 WHERE user_name=$3 RETURNING *", hashPwd, setToken.(string), username.(string)); err != nil {
+		if err := db.Get(&user1, "UPDATE gaea.user SET password=$1, update_token=$2 WHERE user_name=$3 RETURNING *", hashPwd, req.Token, username.(string)); err != nil {
 			log.Error("msg=password reset failed user=%s dev=db insert failed err=%s", username, err)
 			c.AbortWithStatus(401)
 			return

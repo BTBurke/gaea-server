@@ -296,10 +296,10 @@ func UpdateOrderItem(db *sqlx.DB) gin.HandlerFunc {
 			return
 		}
 
-		if ok := auth.MustUser(c, updateItem.UserName); !ok {
-			c.AbortWithError(401, errors.NewAPIError(401, "tried to update order item to another user's order", "internal server error", c))
-			return
-		}
+		// if ok := auth.MustUser(c, updateItem.UserName); !ok {
+		// 	c.AbortWithError(401, errors.NewAPIError(401, "tried to update order item to another user's order", "internal server error", c))
+		// 	return
+		// }
 
 		// Check order is still open before updating
 		saleOpen, err := CheckOrderOpen(updateItem.OrderId, db)

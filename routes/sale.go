@@ -255,3 +255,29 @@ func GetAllOrdersForSale(db *sqlx.DB) gin.HandlerFunc {
 
 	}
 }
+
+func DownloadOrdersAsCSV(db *sqlx.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		saleIDString := c.Param("saleID")
+		if len(saleIDString) == 0 {
+			c.AbortWithError(422, errors.NewAPIError(422, "failed to call with sale ID", "improperly formatted request", c))
+			return
+		}
+		saleID, err := strconv.Atoi(saleIDString)
+		if err != nil {
+			c.AbortWithError(422, errors.NewAPIError(422, "failed to call with sale ID", "improperly formatted request", c))
+			return
+		}
+		allOrders, err := GetAllOrders(db, saleID)
+		if err != nil {
+			c.AbortWithError(503, errors.NewAPIError(503, fmt.Sprintf("failed on getting all orders for sale err=%s", err), "improperly formatted request", c))
+			return
+		}
+		csvFileName, err := AllOrdersAsCSVZip(allOrders)
+		if err != nil {
+			c.AbortWithError(503, errors.NewAPIError(503, fmt.Sprintf("failed on creating CSV from orders err=%s", err), "improperly formatted request", c))
+			return
+		}
+		c.JSON(200, gin.H{"csv": csvFileName})
+	}
+}

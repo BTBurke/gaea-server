@@ -1,4 +1,5 @@
 docker/db/data
+docker/db/sql/gaea.db
 setenv.sh
 env.sh
 gaea-server

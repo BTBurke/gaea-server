@@ -79,6 +79,7 @@ func main() {
 	admin.POST("/sale", routes.CreateSale(db))
 	admin.PUT("/sale/:saleID", routes.UpdateSale(db))
 	admin.GET("/sale/:saleID/all", routes.GetAllOrdersForSale(db))
+	admin.GET("/sale/:saleID/csv", routes.DownloadOrdersAsCSV(db))
 
 	auth.GET("/order", routes.GetOrders(db))
 	auth.POST("/order", routes.CreateOrder(db))

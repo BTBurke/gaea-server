@@ -1,16 +1,18 @@
 package routes
 
 import (
-	"database/sql"
-	"github.com/jmoiron/sqlx"
-	"encoding/csv"
+	"archive/zip"
 	"bytes"
-	"strconv"
-	"github.com/shopspring/decimal"
+	"database/sql"
+	"encoding/csv"
+	"encoding/json"
 	"os"
 	"path"
+	"strconv"
 	"strings"
-	"archive/zip"
+
+	"github.com/jmoiron/sqlx"
+	"github.com/shopspring/decimal"
 )
 
 type Item struct {
@@ -19,9 +21,9 @@ type Item struct {
 }
 
 type UserOrder struct {
-	User  User        `json:"user"`
-	Order Order       `json:"order"`
-	Items []Item      `json:"items"`
+	User  User   `json:"user"`
+	Order Order  `json:"order"`
+	Items []Item `json:"items"`
 }
 
 type SaleOrders struct {
@@ -29,7 +31,19 @@ type SaleOrders struct {
 	Orders []UserOrder `json:"orders"`
 }
 
-func GetAllOrders(db *sqlx.DB, saleID int) ([]UserOrder, error) {
+func GetAllOrders(db *sqlx.DB, saleID int) (SaleOrders, error) {
+	orders, err := GetAllOrdersAsList(db, saleID)
+	if err != nil {
+		return SaleOrders{}, err
+	}
+	var sale1 Sale
+	if err := db.Get(&sale1, "SELECT * FROM gaea.sale WHERE sale_id=$1", saleID); err != nil {
+		return SaleOrders{}, err
+	}
+	return SaleOrders{sale1, orders}, nil
+}
+
+func GetAllOrdersAsList(db *sqlx.DB, saleID int) ([]UserOrder, error) {
 	var orders []Order
 	if err := db.Select(&orders, "SELECT * FROM gaea.order where sale_id=$1", saleID); err != nil {
 		switch {
@@ -41,11 +55,14 @@ func GetAllOrders(db *sqlx.DB, saleID int) ([]UserOrder, error) {
 	}
 
 	var user1 User
-	var oItems []OrderItem
 	var userOrders []UserOrder
-	var allItems []Item
 	var inv Inventory
+	var memberStatus bool
+	var amtErr error
 	for _, order := range orders {
+		var allItems = []Item{}
+		var oItems = []OrderItem{}
+
 		if err := db.Get(&user1, "SELECT * FROM gaea.user WHERE user_name=$1", order.UserName); err != nil {
 			return []UserOrder{}, err
 		}
@@ -63,27 +80,39 @@ func GetAllOrders(db *sqlx.DB, saleID int) ([]UserOrder, error) {
 			}
 			allItems = append(allItems, Item{item, inv})
 		}
+
+		// update Order in place with totals
+		switch {
+		case user1.Role == "nonmember":
+			memberStatus = false
+		default:
+			memberStatus = true
+		}
+		order.ItemQty, order.AmountTotal, amtErr = CalcOrderTotals(order.OrderId, memberStatus, db)
+		if amtErr != nil {
+			return []UserOrder{}, amtErr
+		}
+
 		userOrders = append(userOrders, UserOrder{user1, order, allItems})
 	}
 	return userOrders, nil
 }
 
-
 func orderItemsAsCSVBytes(order UserOrder) ([]byte, error) {
 	var csvBuffer = new(bytes.Buffer)
-	
+
 	var records [][]string
 	var price decimal.Decimal
-	records[0] = []string{"supplier_id", "name", "qty", "case_size", "price", "currency"}
+	records = append(records, []string{"supplier_id", "name", "qty", "case_size", "price", "currency"})
 	for _, item := range order.Items {
 		switch {
-			case order.User.Role == "nonmember":
-				price = item.Inventory.NonmemPrice
-			default:
-				price = item.Inventory.MemPrice
+		case order.User.Role == "nonmember":
+			price = item.Inventory.NonmemPrice
+		default:
+			price = item.Inventory.MemPrice
 		}
 		var rec = []string{item.Inventory.SupplierID, item.Inventory.Name, strconv.Itoa(item.Item.Qty), strconv.Itoa(item.Inventory.CaseSize), price.String(), item.Inventory.Currency}
-		records = append(records, rec)	
+		records = append(records, rec)
 	}
 	w := csv.NewWriter(csvBuffer)
 	w.WriteAll(records)
@@ -110,6 +139,16 @@ func AllOrdersAsCSVZip(sale SaleOrders) (string, error) {
 			return "", err
 		}
 	}
+	// add in all orders as JSON file
+	zipFile, err := z.Create("orders.json")
+	ordersAsJson, err := json.Marshal(sale)
+	if err != nil {
+		return "", err
+	}
+	if _, err := zipFile.Write(ordersAsJson); err != nil {
+		return "", err
+	}
+
 	if err := z.Close(); err != nil {
 		return "", err
 	}

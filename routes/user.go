@@ -160,6 +160,16 @@ func CreateUserExternal(db *sqlx.DB) gin.HandlerFunc {
 			return
 		}
 
+		var userCount int
+		if err := db.Get(&userCount, "SELECT COUNT(*) FROM gaea.user WHERE email=$1", user1.Email); err != nil {
+			c.AbortWithError(422, errors.NewAPIError(422, "failed on checking existing user", "failed to create user", c))
+			return
+		}
+		if userCount > 0 {
+			c.AbortWithError(409, errors.NewAPIError(409, "could not create account for user that already exists", "user with that email address already exists", c))
+			return
+		}
+
 		var retUser User
 		if err := db.Get(&retUser, `INSERT INTO gaea.user
 				(user_name, first_name, last_name,

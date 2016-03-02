@@ -284,6 +284,32 @@ func UpdateUser(db *sqlx.DB) gin.HandlerFunc {
 	}
 }
 
+func UpdateMember(db *sqlx.DB) gin.HandlerFunc {
+	return func (c *gin.Context) {
+	type Req struct {
+		UserName string
+	}
+	
+	var req1 Req
+	err := c.Bind(&req1)
+	if err != nil {
+		fmt.Println(err)
+		c.AbortWithError(422, errors.NewAPIError(422, "failed on updating user membership", "failed to update user membership", c))
+		return
+	}
+	
+	var retU User
+	dbErr := db.Get(&retU, `UPDATE gaea.user SET role = 'member' WHERE user_name = $1 RETURNING *`, req1.UserName)
+	if dbErr != nil {
+			fmt.Println(dbErr)
+			c.AbortWithError(503, errors.NewAPIError(503, "failed on updating user membership in DB", "failed to update user membership in DB", c))
+			return
+	}
+	
+	c.JSON(200, retU)
+	}
+}
+
 func DeleteUser(db *sqlx.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var user1 User

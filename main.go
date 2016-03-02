@@ -15,7 +15,7 @@ import "github.com/jmoiron/sqlx"
 import "log"
 
 func init() {
-	reqdEnv := []string{"LE_TOKEN", "MAILGUN_API_KEY", "POSTGRES_USER", "POSTGRES_PASSWORD"}
+	reqdEnv := []string{"LE_TOKEN", "MAILGUN_API_KEY", "POSTGRES_USER", "POSTGRES_PASSWORD", "EXCHANGE_RATE_API_KEY"}
 
 	var envValue string
 	var exit bool
@@ -66,6 +66,7 @@ func main() {
 	auth.POST("/logout", routes.Logout)
 
 	auth.GET("/user", routes.GetCurrentUser(db))
+	auth.POST("/user/membership", routes.UpdateMember(db))
 	admin.GET("/users", routes.GetAllUsers(db))
 	admin.POST("/users", routes.CreateUser(db))
 

@@ -44,7 +44,11 @@ CREATE TABLE gaea.inventory (
     types text NOT NULL,
     origin text,
     in_stock boolean,
-    changelog text
+    changelog text,
+    use_case_pricing boolean,
+    case_size integer,
+    split_case_penalty_per_item_pct integer,
+    currency varchar(3)
 );
 
 
@@ -118,12 +122,12 @@ INSERT INTO gaea.user (
     'superadmin',
     '16384$8$1$84c73e785d4d9a45df5923cf1663af04$59a8f646c5e13714cf0fe2ee832af9aa03ae32779c9d9157fb65e9ab98cc1bfd',
     '',
-    '910267372',
+    '',
     'NIV',
     '2015-06-06T00:00:00Z',
     '',
     '1900-01-01T00:00:00Z',
     '2016-04-01T00:00:00Z',
-    'family',
+    '',
     ''
 );

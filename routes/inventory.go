@@ -1,10 +1,16 @@
 package routes
 
-import "github.com/gin-gonic/gin"
+import (
+	err "errors"
+	"os"
+
+	"github.com/gin-gonic/gin"
+)
 import (
 	"github.com/BTBurke/gaea-server/email"
 	"github.com/BTBurke/gaea-server/errors"
 	"github.com/BTBurke/gaea-server/log"
+	oxr "github.com/jagregory/gopenexchangerates"
 )
 
 import "encoding/csv"
@@ -20,21 +26,25 @@ import "database/sql"
 // Inventory represents a single inventory item that is associated with
 // an offered sale.  Changes are recorded in the changelog.
 type Inventory struct {
-	InventoryID int             `json:"inventory_id" db:"inventory_id"`
-	SaleID      int             `json:"sale_id" db:"sale_id"`
-	UpdatedAt   time.Time       `json:"updated_at" db:"updated_at"`
-	SupplierID  string          `json:"supplier_id" db:"supplier_id"`
-	Name        string          `json:"name" db:"name"`
-	Description zero.String     `json:"desc" db:"description"`
-	Abv         zero.String     `json:"abv" db:"abv"`
-	Size        zero.String     `json:"size" db:"size"`
-	Year        zero.String     `json:"year" db:"year"`
-	NonmemPrice decimal.Decimal `json:"nonmem_price" db:"nonmem_price"` // nonmember price in USD (7,2)precision
-	MemPrice    decimal.Decimal `json:"mem_price" db:"mem_price"`       // member price in USD (7,2)precision
-	Types       zero.String     `json:"types" db:"types"`               //String-representation of list, > delimiter
-	Origin      zero.String     `json:"origin" db:"origin"`             //String-representation of list, > delimiter
-	InStock     bool            `json:"in_stock" db:"in_stock"`
-	Changelog   zero.String     `json:"changelog" db:"changelog"` //String-representation of list, > delimiter
+	InventoryID                int             `json:"inventory_id" db:"inventory_id"`
+	SaleID                     int             `json:"sale_id" db:"sale_id"`
+	UpdatedAt                  time.Time       `json:"updated_at" db:"updated_at"`
+	SupplierID                 string          `json:"supplier_id" db:"supplier_id"`
+	Name                       string          `json:"name" db:"name"`
+	Description                zero.String     `json:"desc" db:"description"`
+	Abv                        zero.String     `json:"abv" db:"abv"`
+	Size                       zero.String     `json:"size" db:"size"`
+	Year                       zero.String     `json:"year" db:"year"`
+	NonmemPrice                decimal.Decimal `json:"nonmem_price" db:"nonmem_price"` // nonmember price in USD (7,2)precision
+	MemPrice                   decimal.Decimal `json:"mem_price" db:"mem_price"`       // member price in USD (7,2)precision
+	Types                      zero.String     `json:"types" db:"types"`               //String-representation of list, > delimiter
+	Origin                     zero.String     `json:"origin" db:"origin"`             //String-representation of list, > delimiter
+	InStock                    bool            `json:"in_stock" db:"in_stock"`
+	Changelog                  zero.String     `json:"changelog" db:"changelog"` //String-representation of list, > delimiter
+	UseCasePricing             bool            `json:"use_case_pricing" db:"use_case_pricing"`
+	CaseSize                   int             `json:"case_size" db:"case_size"`
+	SplitCasePenaltyPerItemPct int             `json:"split_case_penalty_per_item_pct" db:"split_case_penalty_per_item_pct"`
+	Currency                   string          `json:"currency" db:"currency"`
 }
 
 type csvInventory struct {
@@ -51,14 +61,14 @@ type updateInventory struct {
 
 // loadInventoryFromCSV loads the inventory from a local or uploaded
 // CSV file.  Expects CSV in the following format for columns:
-// {id, name, desc, abv, size, year, nonmember, member, type, origin}
+// {id, name, desc, abv, size, year, nonmember, member, type, origin, use_case_pricing, case_size, split_case_penalty_per_item_pct, currency}
 func inventoryFromCSV(csvString string, saleId int, hasHeader bool) ([]Inventory, error) {
 
 	var out []Inventory
 
 	reader := csv.NewReader(strings.NewReader(csvString))
 
-	reader.FieldsPerRecord = 10
+	reader.FieldsPerRecord = 14
 
 	rawCSVdata, err := reader.ReadAll()
 	if err != nil {
@@ -82,6 +92,21 @@ func inventoryFromCSV(csvString string, saleId int, hasHeader bool) ([]Inventory
 			return out, err
 		}
 
+		casePricing, err := strconv.ParseBool(rec[10])
+		if err != nil {
+			return out, err
+		}
+
+		caseSize, err := strconv.Atoi(rec[11])
+		if err != nil {
+			return out, err
+		}
+
+		splitCasePenalty, err := strconv.Atoi(rec[12])
+		if err != nil {
+			return out, err
+		}
+
 		var t Inventory
 		t.SaleID = saleId
 		t.UpdatedAt = time.Now()
@@ -96,6 +121,10 @@ func inventoryFromCSV(csvString string, saleId int, hasHeader bool) ([]Inventory
 		t.MemPrice = memPrice
 		t.Types = zero.StringFrom(rec[8])
 		t.Origin = zero.StringFrom(rec[9])
+		t.UseCasePricing = casePricing
+		t.CaseSize = caseSize
+		t.SplitCasePenaltyPerItemPct = splitCasePenalty
+		t.Currency = rec[13]
 		t.InStock = true
 
 		out = append(out, t)
@@ -132,13 +161,15 @@ func CreateInventoryFromCSVString(db *sqlx.DB) gin.HandlerFunc {
 			dbErr = db.Get(&invId,
 				`INSERT INTO gaea.inventory
 				(inventory_id, sale_id, updated_at, supplier_id, name, description,
-				abv, size, year, nonmem_price, mem_price, types, origin, in_stock)
+				abv, size, year, nonmem_price, mem_price, types, origin, in_stock,
+				use_case_pricing, case_size, split_case_penalty_per_item_pct, currency)
 				VALUES (DEFAULT, $1, $2, $3, $4, $5,
-				$6, $7, $8, $9, $10, $11, $12, $13) RETURNING inventory_id`,
+				$6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING inventory_id`,
 				inv1.SaleID, inv1.UpdatedAt,
 				inv1.SupplierID, inv1.Name, inv1.Description,
 				inv1.Abv, inv1.Size, inv1.Year, inv1.NonmemPrice, inv1.MemPrice,
-				inv1.Types, inv1.Origin, inv1.InStock)
+				inv1.Types, inv1.Origin, inv1.InStock, inv1.UseCasePricing, inv1.CaseSize,
+				inv1.SplitCasePenaltyPerItemPct, inv1.Currency)
 			if dbErr != nil {
 				fmt.Println(inv1)
 				fmt.Println(dbErr)
@@ -185,7 +216,21 @@ func GetInventory(db *sqlx.DB) gin.HandlerFunc {
 			c.AbortWithError(422, errors.NewAPIError(422, "sale ID does not exist", "sale ID does not exist", c))
 			return
 		}
-		c.JSON(200, gin.H{"inventory": inv, "query": queryName, "qty": len(inv)})
+
+		// passing ?currency=<curency> converts to another currency
+		currency := c.Query("currency")
+		if len(currency) == 0 {
+			c.JSON(200, gin.H{"inventory": inv, "query": queryName, "qty": len(inv)})
+			return
+		}
+
+		invInCurrency, err := convertInventoryToCurrency(inv, currency)
+		if err != nil {
+			c.AbortWithError(422, errors.NewAPIError(503, fmt.Sprintf("msg=failed to convert to other currency err=%s", err), "internal server error", c))
+			return
+		}
+
+		c.JSON(200, gin.H{"inventory": invInCurrency, "query": queryName, "qty": len(inv)})
 	}
 }
 
@@ -206,13 +251,15 @@ func CreateItem(db *sqlx.DB) gin.HandlerFunc {
 		dbErr := db.Get(&invId,
 			`INSERT INTO gaea.inventory
 				(inventory_id, sale_id, updated_at, supplier_id, name, description,
-				abv, size, year, nonmem_price, mem_price, types, origin, in_stock)
+				abv, size, year, nonmem_price, mem_price, types, origin, in_stock,
+			use_case_pricing, case_size, split_case_penalty_per_item_pct, currency)
 				VALUES (DEFAULT, $1, $2, $3, $4, $5,
-				$6, $7, $8, $9, $10, $11, $12, $13) RETURNING inventory_id`,
+				$6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING inventory_id`,
 			inv.SaleID, time.Now(),
 			inv.SupplierID, inv.Name, inv.Description,
 			inv.Abv, inv.Size, inv.Year, inv.NonmemPrice, inv.MemPrice,
-			inv.Types, inv.Origin, inv.InStock)
+			inv.Types, inv.Origin, inv.InStock, inv.UseCasePricing, inv.CaseSize,
+			inv.SplitCasePenaltyPerItemPct, inv.Currency)
 		if dbErr != nil {
 			fmt.Println(inv)
 			fmt.Println(dbErr)
@@ -243,12 +290,14 @@ func UpdateItem(db *sqlx.DB) gin.HandlerFunc {
 		var invResult Inventory
 		dbErr := db.Get(&invResult,
 			`UPDATE gaea.inventory SET sale_id=$1, updated_at=$2, supplier_id=$3, name=$4, description=$5,
-				abv=$6, size=$7, year=$8, nonmem_price=$9, mem_price=$10, types=$11, origin=$12, in_stock=$13, changelog=$14
-				WHERE inventory_id=$15 RETURNING *`,
+				abv=$6, size=$7, year=$8, nonmem_price=$9, mem_price=$10, types=$11, origin=$12, in_stock=$13, changelog=$14,
+				use_case_pricing=$15, case_size=$16, split_case_penalty_per_item_pct=$17, currency=$18
+				WHERE inventory_id=$19 RETURNING *`,
 			inv.SaleID, time.Now(),
 			inv.SupplierID, inv.Name, inv.Description,
 			inv.Abv, inv.Size, inv.Year, inv.NonmemPrice, inv.MemPrice,
-			inv.Types, inv.Origin, inv.InStock, inv.Changelog, inv.InventoryID)
+			inv.Types, inv.Origin, inv.InStock, inv.Changelog,
+			inv.UseCasePricing, inv.CaseSize, inv.SplitCasePenaltyPerItemPct, inv.Currency, inv.InventoryID)
 		if dbErr != nil {
 			fmt.Println(inv)
 			fmt.Println(dbErr)
@@ -330,4 +379,44 @@ func findAffectedUsers(inventoryID int, db *sqlx.DB) ([]User, error) {
 		users = append(users, user1)
 	}
 	return users, nil
+}
+
+// convertInventoryToCurrency returns a new list of inventory with the currency converted from a current currency
+// to a different currency using the OpenExchangeRates.org data
+func convertInventoryToCurrency(inv []Inventory, toCurrency string) ([]Inventory, error) {
+	var returnInventory []Inventory
+
+	oxrKey := os.Getenv("EXCHANGE_RATE_API_KEY")
+	if len(oxrKey) == 0 {
+		return inv, err.New("EXCHANGE_RATE_API_KEY not set")
+	}
+
+	xr := oxr.New(oxrKey)
+	if err := xr.Populate(); err != nil {
+		return inv, err
+	}
+
+	toRate, err := xr.Get(toCurrency)
+	if err != nil {
+		return inv, err
+	}
+
+	var rateError error
+	var rate float64
+	var fromRate float64
+	for _, inv1 := range inv {
+		inv1.Currency = toCurrency
+
+		fromRate, rateError = xr.Get(inv1.Currency)
+		if rateError != nil {
+			return inv, rateError
+		}
+		rate = toRate / fromRate
+
+		inv1.MemPrice = inv1.MemPrice.Mul(decimal.NewFromFloat(rate))
+		inv1.NonmemPrice = inv1.NonmemPrice.Mul(decimal.NewFromFloat(rate))
+		returnInventory = append(returnInventory, inv1)
+	}
+	return returnInventory, nil
+
 }

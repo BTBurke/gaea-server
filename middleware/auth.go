@@ -3,8 +3,8 @@ package middleware
 import (
 	"strings"
 
-	"github.com/BTBurke/gaea-server/routes"
 	"github.com/BTBurke/gaea-server/log"
+	"github.com/BTBurke/gaea-server/routes"
 	"github.com/gin-gonic/gin"
 )
 
@@ -31,9 +31,9 @@ func Auth() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("user", token.Claims["user"])
+		c.Set("user", token.Claims["user"].(string))
 		c.Set("jwt", jwtString[1])
-		c.Set("role", token.Claims["role"])
+		c.Set("role", token.Claims["role"].(string))
 		c.Set("exp", token.Claims["exp"])
 		c.Set("iss", token.Claims["iss"])
 

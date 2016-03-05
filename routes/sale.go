@@ -278,6 +278,7 @@ func DownloadOrdersAsCSV(db *sqlx.DB) gin.HandlerFunc {
 			c.AbortWithError(503, errors.NewAPIError(503, fmt.Sprintf("failed on creating CSV from orders err=%s", err), "improperly formatted request", c))
 			return
 		}
-		c.JSON(200, gin.H{"csv": csvFileName})
+
+		c.JSON(200, gin.H{"file": csvFileName, "id": saleIDString})
 	}
 }

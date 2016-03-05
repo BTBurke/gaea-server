@@ -122,9 +122,35 @@ func orderItemsAsCSVBytes(order UserOrder) ([]byte, error) {
 	return csvBuffer.Bytes(), nil
 }
 
+func allOrderItemsAsCSVBytes(orders []UserOrder) ([]byte, error) {
+	var csvBuffer = new(bytes.Buffer)
+
+	var records [][]string
+	var price decimal.Decimal
+	records = append(records, []string{"supplier_id", "name", "qty", "case_size", "price", "currency"})
+	for _, order := range orders {
+	for _, item := range order.Items {
+		switch {
+		case order.User.Role == "nonmember":
+			price = item.Inventory.NonmemPrice
+		default:
+			price = item.Inventory.MemPrice
+		}
+		var rec = []string{item.Inventory.SupplierID, item.Inventory.Name, strconv.Itoa(item.Item.Qty), strconv.Itoa(item.Inventory.CaseSize), price.String(), item.Inventory.Currency}
+		records = append(records, rec)
+	}
+	}
+	w := csv.NewWriter(csvBuffer)
+	w.WriteAll(records)
+	if err := w.Error(); err != nil {
+		return []byte{}, err
+	}
+	return csvBuffer.Bytes(), nil
+}
+
 func AllOrdersAsCSVZip(sale SaleOrders) (string, error) {
 	fName := strings.Join([]string{"sale-", strconv.Itoa(sale.Sale.SaleId), ".zip"}, "")
-	f, err := os.Create(path.Join("/tmp", fName))
+	f, err := os.Create(path.Join("files/", fName))
 	if err != nil {
 		return "", err
 	}
@@ -141,16 +167,29 @@ func AllOrdersAsCSVZip(sale SaleOrders) (string, error) {
 	}
 	// add in all orders as JSON file
 	zipFile, err := z.Create("orders.json")
-	ordersAsJson, err := json.Marshal(sale)
+	ordersAsJson, err := json.MarshalIndent(sale, "", "  ")
 	if err != nil {
 		return "", err
 	}
 	if _, err := zipFile.Write(ordersAsJson); err != nil {
 		return "", err
 	}
+	
+	// add in all items as a CSV file
+	zipFile2, err := z.Create("allorders.csv") 
+	allCsvBytes, err := allOrderItemsAsCSVBytes(sale.Orders)
+	if err != nil {
+		return "", err
+	}
+	if _, err = zipFile2.Write(allCsvBytes); err != nil {
+		return "", err
+	}
+	
+	
 
 	if err := z.Close(); err != nil {
 		return "", err
 	}
-	return fName, nil
+	fileLoc := path.Join("files/", fName)
+	return fileLoc, nil
 }

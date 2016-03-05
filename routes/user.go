@@ -287,7 +287,7 @@ func UpdateUser(db *sqlx.DB) gin.HandlerFunc {
 func UpdateMember(db *sqlx.DB) gin.HandlerFunc {
 	return func (c *gin.Context) {
 	type Req struct {
-		UserName string
+		UserName string `json:"user_name"`
 	}
 	
 	var req1 Req

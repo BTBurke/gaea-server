@@ -331,7 +331,7 @@ func convertChangeFieldsToMap(fields []string) map[string]bool {
 	if len(fields) == 0 {
 		return nil
 	}
-	var out map[string]bool
+	out := make(map[string]bool)
 	for _, field := range fields {
 		out[field] = true
 	}

@@ -98,6 +98,8 @@ func main() {
 	admin.DELETE("/announcement/:announcementID", routes.DeleteAnnouncement(db))
 
 	r.GET("/testauth", middleware.Auth(), routes.TestAuth)
+	
+	r.Static("/files", "./files")
 	// When developing on c9
 	r.Run(":8080")
 

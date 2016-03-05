@@ -3,6 +3,7 @@ package routes
 import (
 	"time"
 	"fmt"
+	"database/sql"
 
 	"github.com/BTBurke/gaea-server/errors"
 	"github.com/gin-gonic/gin"
@@ -28,6 +29,60 @@ type Transaction struct {
 	UpdatedAt     time.Time       `json:"updated_at" db:"updated_at"`
 	AuthorizedBy1 zero.String     `json:"authorized_by1" db:"authorized_by1"`
 	AuthorizedBy2 zero.String     `json:"authorized_by2" db:"authorized_by2"`
+}
+
+func GetTransactionsByOrderId(orderID int, db *sqlx.DB) ([]Transaction, error) {
+	var trans []Transaction
+	if dbErr := db.Select(&trans, "SELECT * FROM gaea.transaction WHERE order_id=$1", orderID); dbErr != nil {
+		switch {
+			case dbErr == sql.ErrNoRows:
+				return []Transaction{}, nil
+			default:
+				return []Transaction{}, dbErr
+		}
+	}
+	return trans, nil
+}
+
+func GetTransactionsBySaleId(saleID int, db *sqlx.DB) ([]Transaction, error) {
+	var trans []Transaction
+	if dbErr := db.Select(&trans, "SELECT * FROM gaea.transaction WHERE sale_id=$1", saleID); dbErr != nil {
+		switch {
+			case dbErr == sql.ErrNoRows:
+				return []Transaction{}, nil
+			default:
+				return []Transaction{}, dbErr
+		}
+	}
+	return trans, nil
+}
+
+func GetTransactionsByUser(user string, db *sqlx.DB) ([]Transaction, error) {
+	var trans []Transaction
+	if dbErr := db.Select(&trans, "SELECT * FROM gaea.transaction WHERE user_name=$1", user); dbErr != nil {
+		switch {
+			case dbErr == sql.ErrNoRows:
+				return []Transaction{}, nil
+			default:
+				return []Transaction{}, dbErr
+		}
+	}
+	return trans, nil
+}
+
+func UpdateTransactionAsPaid(trans Transaction, db *sqlx.DB) (Transaction, error) {
+	var updTrans Transaction
+	if err := db.Get(&updTrans, `UPDATE gaea.transaction SET status='paid', pay_date=$1, notes=$2, track=$3, 
+	updated_at=$4, authorized_by1=$5 WHERE transaction_id=$6 RETURNING *`,
+	time.Now(),
+	trans.Notes,
+	trans.Track,
+	time.Now(),
+	trans.AuthorizedBy1,
+	trans.TransactionID); err != nil {
+		return trans, err
+	}
+	return updTrans, nil
 }
 
 func CreateTransaction(db *sqlx.DB) gin.HandlerFunc {

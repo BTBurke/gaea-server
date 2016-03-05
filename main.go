@@ -8,7 +8,6 @@ import "fmt"
 import "github.com/gin-gonic/gin"
 import "github.com/BTBurke/gaea-server/routes"
 import "github.com/BTBurke/gaea-server/middleware"
-import "github.com/BTBurke/gaea-server/errors"
 
 import _ "github.com/lib/pq"
 import "github.com/jmoiron/sqlx"
@@ -16,7 +15,7 @@ import "github.com/jmoiron/sqlx"
 import "log"
 
 func init() {
-	reqdEnv := []string{"LE_TOKEN", "MAILGUN_API_KEY", "POSTGRES_USER", "POSTGRES_PASSWORD"}
+	reqdEnv := []string{"LE_TOKEN", "MAILGUN_API_KEY", "POSTGRES_USER", "POSTGRES_PASSWORD", "EXCHANGE_RATE_API_KEY"}
 
 	var envValue string
 	var exit bool
@@ -39,7 +38,12 @@ func main() {
 	// Connect to database
 	pgUser := os.Getenv("POSTGRES_USER")
 	pgPassword := os.Getenv("POSTGRES_PASSWORD")
-	pgConnectString := fmt.Sprintf("user=%s password=%s dbname=db_gaea sslmode=disable", pgUser, pgPassword)
+	pgHost := os.Getenv("DB_PORT_5432_TCP_ADDR")
+	if len(pgHost) == 0 {
+		pgHost = "127.0.0.1"
+	}
+	fmt.Printf("INFO: Using %s as postgres host connection\n", pgHost)
+	pgConnectString := fmt.Sprintf("host=%s user=%s password=%s dbname=db_gaea sslmode=disable", pgHost, pgUser, pgPassword)
 
 	db, err := sqlx.Connect("postgres", pgConnectString)
 	if err != nil {
@@ -50,26 +54,19 @@ func main() {
 		c.String(200, "pong")
 	})
 
-	r.GET("/401", func(c *gin.Context) {
-		c.String(401, "Unauthorized")
-	})
-
-	r.GET("/error", func(c *gin.Context) {
-		c.Set("user", "usertest")
-		c.Set("role", "admin")
-		c.AbortWithError(422, errors.NewAPIError(422, "test error development msg", "test error user message", c))
-		return
-	})
-
 	r.POST("/login", routes.Login(db))
 	r.POST("/reset", routes.RequestResetEmail(db))
+	r.POST("/create", routes.CreateUserExternal(db))
 
 	auth := r.Group("/", middleware.CORS(), middleware.Auth())
 	admin := r.Group("/", middleware.CORS(), middleware.Auth(), middleware.Admin())
 
 	r.POST("/set", routes.SetPassword(db))
 
+	auth.POST("/logout", routes.Logout)
+
 	auth.GET("/user", routes.GetCurrentUser(db))
+	auth.POST("/user/membership", routes.UpdateMember(db))
 	admin.GET("/users", routes.GetAllUsers(db))
 	admin.POST("/users", routes.CreateUser(db))
 
@@ -83,13 +80,14 @@ func main() {
 	admin.POST("/sale", routes.CreateSale(db))
 	admin.PUT("/sale/:saleID", routes.UpdateSale(db))
 	admin.GET("/sale/:saleID/all", routes.GetAllOrdersForSale(db))
+	admin.GET("/sale/:saleID/csv", routes.DownloadOrdersAsCSV(db))
 
 	auth.GET("/order", routes.GetOrders(db))
 	auth.POST("/order", routes.CreateOrder(db))
 	auth.PUT("/order/:orderID", routes.UpdateOrderStatus(db))
 	auth.GET("/order/:orderID/item", routes.GetOrderItems(db))
 	auth.POST("/order/:orderID/item", routes.AddOrderItem(db))
-	auth.DELETE("/order/:orderID/item/:itemID", routes.DeleteOrderItem)
+	auth.DELETE("/order/:orderID/item/:itemID", routes.DeleteOrderItem(db))
 	auth.PUT("/order/:orderID/item/:itemID", routes.UpdateOrderItem(db))
 
 	auth.POST("/transaction", routes.CreateTransaction(db))
@@ -100,6 +98,8 @@ func main() {
 	admin.DELETE("/announcement/:announcementID", routes.DeleteAnnouncement(db))
 
 	r.GET("/testauth", middleware.Auth(), routes.TestAuth)
+	
+	r.Static("/files", "./files")
 	// When developing on c9
 	r.Run(":8080")
 

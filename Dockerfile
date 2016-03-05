@@ -1,7 +1,15 @@
 FROM ubuntu:14.04
 MAINTAINER Bryan Burke <btburke@fastmail.com>
 
-COPY ./gaea-server /usr/local/bin/gaea-server
+RUN apt-get update && apt-get -y upgrade
+RUN apt-get install -y ca-certificates
+
+EXPOSE 8080
+RUN mkdir -p /code
+RUN mkdir -p /code/files
+WORKDIR /code
+
+ADD ./gaea-server /code/gaea-server
 ENV GIN_MODE release
 
-ENTRYPOINT  ["/usr/local/bin/gaea-server"]
+ENTRYPOINT  ["gaea-server"]

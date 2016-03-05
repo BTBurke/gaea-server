@@ -10,6 +10,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/shopspring/decimal"
@@ -102,16 +103,21 @@ func orderItemsAsCSVBytes(order UserOrder) ([]byte, error) {
 	var csvBuffer = new(bytes.Buffer)
 
 	var records [][]string
-	var price decimal.Decimal
-	records = append(records, []string{"supplier_id", "name", "qty", "case_size", "price", "currency"})
+	var price, total decimal.Decimal
+	var member bool
+	records = append(records, []string{"supplier_id", "name", "abv", "qty", "case_size", "price", "total", "currency"})
 	for _, item := range order.Items {
 		switch {
 		case order.User.Role == "nonmember":
 			price = item.Inventory.NonmemPrice
+			member = false
 		default:
+			member = true
 			price = item.Inventory.MemPrice
 		}
-		var rec = []string{item.Inventory.SupplierID, item.Inventory.Name, strconv.Itoa(item.Item.Qty), strconv.Itoa(item.Inventory.CaseSize), price.String(), item.Inventory.Currency}
+		total = CalcItemTotal(item.Item, item.Inventory, member)
+		abv, _ := item.Inventory.Abv.MarshalText()
+		var rec = []string{item.Inventory.SupplierID, item.Inventory.Name, string(abv), strconv.Itoa(item.Item.Qty), strconv.Itoa(item.Inventory.CaseSize), price.String(), total.String(), item.Inventory.Currency}
 		records = append(records, rec)
 	}
 	w := csv.NewWriter(csvBuffer)
@@ -126,17 +132,22 @@ func allOrderItemsAsCSVBytes(orders []UserOrder) ([]byte, error) {
 	var csvBuffer = new(bytes.Buffer)
 
 	var records [][]string
-	var price decimal.Decimal
-	records = append(records, []string{"supplier_id", "name", "qty", "case_size", "price", "currency"})
+	var price, total decimal.Decimal
+	var member bool
+	records = append(records, []string{"username", "supplier_id", "name", "abv", "qty", "case_size", "price", "total", "currency"})
 	for _, order := range orders {
 	for _, item := range order.Items {
 		switch {
 		case order.User.Role == "nonmember":
 			price = item.Inventory.NonmemPrice
+			member = false
 		default:
+			member = true
 			price = item.Inventory.MemPrice
 		}
-		var rec = []string{item.Inventory.SupplierID, item.Inventory.Name, strconv.Itoa(item.Item.Qty), strconv.Itoa(item.Inventory.CaseSize), price.String(), item.Inventory.Currency}
+		total = CalcItemTotal(item.Item, item.Inventory, member)
+		abv, _ := item.Inventory.Abv.MarshalText()
+		var rec = []string{order.User.UserName, item.Inventory.SupplierID, item.Inventory.Name, string(abv), strconv.Itoa(item.Item.Qty), strconv.Itoa(item.Inventory.CaseSize), price.String(), total.String(), item.Inventory.Currency}
 		records = append(records, rec)
 	}
 	}
@@ -149,7 +160,8 @@ func allOrderItemsAsCSVBytes(orders []UserOrder) ([]byte, error) {
 }
 
 func AllOrdersAsCSVZip(sale SaleOrders) (string, error) {
-	fName := strings.Join([]string{"sale-", strconv.Itoa(sale.Sale.SaleId), ".zip"}, "")
+	t := time.Now().Format("0601021504") //YYMMDDHHMM
+	fName := strings.Join([]string{"sale-", strconv.Itoa(sale.Sale.SaleId), "-", t, ".zip"}, "")
 	f, err := os.Create(path.Join("files/", fName))
 	if err != nil {
 		return "", err
@@ -191,5 +203,12 @@ func AllOrdersAsCSVZip(sale SaleOrders) (string, error) {
 		return "", err
 	}
 	fileLoc := path.Join("files/", fName)
+	
+	go deleteAfterWait(fileLoc)
 	return fileLoc, nil
+}
+
+func deleteAfterWait(fname string) {
+	time.Sleep(5 * time.Minute)
+	os.Remove(fname)
 }

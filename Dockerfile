@@ -5,10 +5,11 @@ RUN apt-get update && apt-get -y upgrade
 RUN apt-get install -y ca-certificates
 
 EXPOSE 8080
-EXPOSE 5432
-EXPOSE 6379
+RUN mkdir -p /code
+RUN mkdir -p /code/files
+WORKDIR /code
 
-ADD ./gaea-server /usr/local/bin/gaea-server
+ADD ./gaea-server /code/gaea-server
 ENV GIN_MODE release
 
-ENTRYPOINT  ["/usr/local/bin/gaea-server"]
+ENTRYPOINT  ["gaea-server"]

@@ -397,6 +397,26 @@ func CalcOrderTotals(orderID int, member bool, db *sqlx.DB) (int, decimal.Decima
 	return totalQty, total, nil
 }
 
+func CalcItemTotal(item OrderItem, inv Inventory, member bool) decimal.Decimal {
+	
+	var price, total decimal.Decimal
+	switch {
+		case member:
+			price = inv.MemPrice
+		default:
+			price = inv.NonmemPrice
+	}
+	
+	switch {
+		case inv.UseCasePricing:
+			total = calcSubTotalCasePricing(item.Qty, price, inv.CaseSize, inv.SplitCasePenaltyPerItemPct)
+		default:
+			total = calcSubTotal(item.Qty, price)
+	}
+	
+	return total
+}
+
 func calcSubTotal(qty int, price decimal.Decimal) decimal.Decimal {
 	decQty := decimal.New(int64(qty), 0)
 	return price.Mul(decQty)

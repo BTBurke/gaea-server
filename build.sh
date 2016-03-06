@@ -1,6 +1,6 @@
 #!/bin/bash
 
-LATEST_TAG=$(git tag)
+LATEST_TAG=$(git tag | tail - )
 
 if [[ $GITHUB_TOKEN == "" ]]; then
 echo "Github token not set. Aborting."

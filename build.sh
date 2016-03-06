@@ -19,7 +19,7 @@ go build
 if [ -f gaea-server ]; then
 
 tar -cvzf gaea-server-linux-amd64.tar.gz gaea-server
-tar -cvzf sql.tar.gz docker/db/schema.sql /docker/db/sql/
+tar -cvzf sql.tar.gz docker/db/schema.sql docker/db/sql/
 
 github-release release \
     --user btburke \

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-LATEST_TAG=$(git tag | tail - )
+LATEST_TAG=$(git tag | tail -n 1)
 
 if [[ $GITHUB_TOKEN == "" ]]; then
 echo "Github token not set. Aborting."
@@ -16,10 +16,7 @@ git push --tags
 
 go build
 
-if ![ -f gaea-server ]; then
-echo "Build failed"
-exit 1
-fi
+if [ -f gaea-server ]; then
 
 tar -cvzf gaea-server-linux-amd64.tar.gz gaea-server
 
@@ -38,5 +35,11 @@ github-release upload \
     --file gaea-server-linux-amd64.tar.gz
 
 rm gaea-server-linux-amd64.tar.gz
+
+else
+echo "Build failed"
+exit 1
+fi
+
 
 echo "Release $LATEST_TAG complete and uploaded to Github"
